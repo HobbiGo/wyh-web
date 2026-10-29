@@ -262,11 +262,28 @@ function checkoutForm(d,subtotal){
  submit.textContent='Kirim permintaan pesanan';submit.disabled=true;
  let turnstileToken='',widgetId=null,requestsEnabled=false;
  const challenge=el('div');const challengeStatus=el('p','fine','Memuat pemeriksaan keamanan…');submit.before(challenge,challengeStatus);
- fetch('https://wyh-api.wenyonghan927.workers.dev/checkout-config',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();const config=await r.json();if(!config.turnstile_configured||!config.site_key)throw Error();requestsEnabled=config.requests_enabled===true;
- if(!window.wyhTurnstileLoading)window.wyhTurnstileLoading=new Promise((resolve,reject)=>{if(window.turnstile){resolve();return;}const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=resolve;script.onerror=reject;document.head.append(script);});
- await window.wyhTurnstileLoading;if(!challenge.isConnected)return;
- window.turnstile.ready(()=>{if(!challenge.isConnected)return;widgetId=window.turnstile.render(challenge,{sitekey:config.site_key,theme:'dark',action:'wyh_order_request',callback:token=>{turnstileToken=token;submit.disabled=!requestsEnabled;challengeStatus.textContent=requestsEnabled?'Pemeriksaan keamanan selesai.':'Pemeriksaan keamanan selesai. Pengiriman permintaan masih ditutup.';},'expired-callback':()=>{turnstileToken='';submit.disabled=true;challengeStatus.textContent='Pemeriksaan kedaluwarsa. Ulangi pemeriksaan keamanan.';},'error-callback':()=>{turnstileToken='';submit.disabled=true;challengeStatus.textContent='Pemeriksaan keamanan gagal dimuat. Buka ulang checkout untuk mencoba lagi.';}});});
- }).catch(()=>{challengeStatus.textContent='Pemeriksaan keamanan belum tersedia. Pengiriman permintaan tetap terkunci.';submit.disabled=true;});
+ const retry=el('button','btn outline','Coba pemeriksaan keamanan lagi');retry.type='button';retry.hidden=true;submit.before(retry);
+ async function loadSecurity(){
+  let stage='CONFIG';turnstileToken='';submit.disabled=true;retry.hidden=true;challengeStatus.textContent='Menghubungkan pemeriksaan keamanan…';
+  try{
+   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);let config;
+   try{const r=await fetch('https://wyh-api.wenyonghan927.workers.dev/checkout-config',{cache:'no-store',signal:controller.signal});if(!r.ok)throw Error('HTTP '+r.status);config=await r.json();}finally{clearTimeout(timer);}
+   if(!config.turnstile_configured||!config.site_key)throw Error('Konfigurasi widget belum lengkap');requestsEnabled=config.requests_enabled===true;
+   stage='SCRIPT';challengeStatus.textContent='Memuat widget Cloudflare…';
+   if(!window.turnstile){
+    if(!window.wyhTurnstileLoading)window.wyhTurnstileLoading=new Promise((resolve,reject)=>{
+     const script=document.createElement('script');let settled=false;const timeout=setTimeout(()=>{if(!settled){settled=true;script.remove();reject(Error('Waktu muat widget habis'));}},20000);
+     script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;
+     script.onload=()=>{if(settled)return;settled=true;clearTimeout(timeout);resolve();};script.onerror=()=>{if(settled)return;settled=true;clearTimeout(timeout);script.remove();reject(Error('Script widget gagal dimuat'));};document.head.append(script);
+    });
+    try{await window.wyhTurnstileLoading;}catch(error){window.wyhTurnstileLoading=null;throw error;}
+   }
+   if(!challenge.isConnected)return;stage='RENDER';if(!window.turnstile||typeof window.turnstile.render!=='function')throw Error('API widget belum tersedia');
+   if(widgetId!==null){try{window.turnstile.remove(widgetId);}catch{}widgetId=null;}challenge.replaceChildren();
+   widgetId=window.turnstile.render(challenge,{sitekey:config.site_key,theme:'dark',action:'wyh_order_request',callback:token=>{turnstileToken=token;submit.disabled=!requestsEnabled;retry.hidden=true;challengeStatus.textContent=requestsEnabled?'Pemeriksaan keamanan selesai.':'Pemeriksaan keamanan selesai. Pengiriman permintaan masih ditutup.';},'expired-callback':()=>{turnstileToken='';submit.disabled=true;retry.hidden=false;challengeStatus.textContent='Token kedaluwarsa. Tekan coba lagi.';},'error-callback':code=>{turnstileToken='';submit.disabled=true;retry.hidden=false;challengeStatus.textContent='Widget gagal. Kode: '+String(code||'tidak tersedia')+'. Pengiriman tetap terkunci.';return true;}});
+  }catch(error){challengeStatus.textContent='Pemeriksaan gagal ['+stage+']: '+String(error.message||'Koneksi tidak tersedia')+'. Pengiriman tetap terkunci.';submit.disabled=true;retry.hidden=false;}
+ }
+ retry.onclick=loadSecurity;loadSecurity();
  const key=crypto.randomUUID();const payloadItems=bag.map(x=>({id:x.id,size:x.size,color:x.color,qty:x.qty}));let busy=false;
  submit.onclick=async()=>{
   if(busy||!turnstileToken||!requestsEnabled)return;if(!form.reportValidity())return;if(!agree.checked){agree.focus();return;}

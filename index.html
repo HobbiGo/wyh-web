@@ -410,4 +410,35 @@ for(const old of ['Product type and material information; not live inventory.','
 translatePage();
 })();
 </script>
+<style>
+/* Preserve native dialog visibility: flex must not override the closed state. */
+dialog:not([open]){display:none!important}
+#cart-dialog[open]{display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain}
+#cart-dialog>.close{position:absolute;top:12px;right:14px;z-index:20;display:flex;align-items:center;justify-content:center;float:none;width:48px;height:48px;min-height:48px;flex-shrink:0;padding:0;border:1px solid #806747;background:#281d16;color:#f5ece0;cursor:pointer;touch-action:manipulation}
+.wyh-cart-navigation{min-height:48px;padding-right:56px;margin-bottom:10px;flex-shrink:0}
+.wyh-cart-navigation button{min-height:44px;padding:10px 14px;background:#281d16;color:#e6cf9f;border:1px solid #806747;cursor:pointer;touch-action:manipulation}
+</style>
+<script>
+(()=>{
+const panel=document.getElementById('cart-dialog');if(!panel)return;
+function closeBag(){if(panel.open)panel.close();}
+function continueShopping(){closeBag();location.hash='catalog';route();}
+function ensureNavigation(){
+ if(!panel.open)return;
+ const close=panel.querySelector('button.close');if(close){close.type='button';close.setAttribute('aria-label','Tutup keranjang');}
+ if(!panel.querySelector('.wyh-cart-navigation')){
+  const nav=el('div','wyh-cart-navigation');const b=el('button','','← Lanjut belanja');b.type='button';b.dataset.wyhContinue='true';nav.append(b);panel.prepend(nav);
+ }
+}
+panel.addEventListener('click',event=>{
+ const button=event.target.closest('button');if(!button)return;
+ if(button.classList.contains('close')){event.preventDefault();event.stopImmediatePropagation();closeBag();}
+ else if(button.dataset.wyhContinue==='true'){event.preventDefault();event.stopImmediatePropagation();continueShopping();}
+},true);
+const observer=new MutationObserver(()=>{observer.disconnect();ensureNavigation();observer.observe(panel,{childList:true,attributes:true,attributeFilter:['open']});});
+observer.observe(panel,{childList:true,attributes:true,attributeFilter:['open']});ensureNavigation();
+const navWords=['← Continue shopping','← Lanjut belanja','← 继续购物','← 買い物を続ける','← Seguir comprando'];
+for(let i=0;i<navWords.length;i++){canonicalText.set(navWords[i],navWords[0]);dictionaries[['en','id','zh','ja','es'][i]].set(navWords[0],navWords[i]);}
+})();
+</script>
 </body></html>

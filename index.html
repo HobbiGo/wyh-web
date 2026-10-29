@@ -441,4 +441,42 @@ const navWords=['← Continue shopping','← Lanjut belanja','← 继续购物',
 for(let i=0;i<navWords.length;i++){canonicalText.set(navWords[i],navWords[0]);dictionaries[['en','id','zh','ja','es'][i]].set(navWords[0],navWords[i]);}
 })();
 </script>
+<style>
+#cart-dialog[open] .wyh-cart-navigation{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:82px;box-sizing:border-box;padding:14px 18px 14px 4px;margin:0 0 20px;background:#21150f;border-bottom:1px solid #806747;flex-shrink:0}
+#cart-dialog[open] .wyh-cart-navigation>.close{position:static;float:none;display:flex;align-items:center;justify-content:center;flex:0 0 56px;width:56px;height:56px;min-height:56px;padding:0;margin:0;border:1px solid #d5b367;border-radius:5px;background:#35251b;color:#fff3db;font-size:36px;font-weight:400;line-height:1;z-index:31;touch-action:manipulation;cursor:pointer}
+#cart-dialog[open] .wyh-cart-navigation>.close:focus-visible{outline:3px solid #fff3db;outline-offset:3px}
+#cart-dialog[open] .wyh-cart-navigation>button:not(.close){min-height:48px;padding:10px 12px}
+</style>
+<script>
+(()=>{
+const panel=document.getElementById('cart-dialog');if(!panel)return;
+function alignClose(){const nav=panel.querySelector('.wyh-cart-navigation');const close=panel.querySelector('button.close');if(nav&&close&&close.parentElement!==nav)nav.append(close);}
+const observer=new MutationObserver(alignClose);observer.observe(panel,{childList:true,subtree:true});alignClose();
+})();
+</script>
+<script>
+(()=>{
+const rows=[
+['Send order request','Kirim permintaan pesanan','提交订单请求','注文リクエストを送信','Enviar solicitud de pedido'],
+['Send an order request for admin review. This is not a payment and stock is not reserved.','Kirim permintaan pesanan untuk diperiksa admin. Ini bukan pembayaran dan belum mereservasi stok.','提交订单请求供管理员审核。这不是付款，也不会预留库存。','管理者の確認用に注文リクエストを送信します。支払いではなく、在庫は確保されません。','Envía una solicitud para revisión. No es un pago y no se reserva inventario.'],
+['I agree to send my contact details and address to W.Y.H. to process this order request.','Saya setuju data kontak dan alamat ini dikirim kepada W.Y.H. untuk memproses permintaan pesanan.','我同意将联系方式和地址发送给 W.Y.H. 以处理此订单请求。','注文リクエストの処理のため、連絡先と住所をW.Y.H.へ送信することに同意します。','Acepto enviar mis datos de contacto y dirección a W.Y.H. para procesar esta solicitud.'],
+['Security check complete.','Pemeriksaan keamanan selesai.','安全验证已完成。','セキュリティ確認が完了しました。','Verificación de seguridad completada.'],
+['Security check complete. Order requests are still closed.','Pemeriksaan keamanan selesai. Pengiriman permintaan masih ditutup.','安全验证已完成。订单请求暂未开放。','セキュリティ確認が完了しました。注文リクエストはまだ受け付けていません。','Verificación completada. Las solicitudes aún están cerradas.'],
+['Try security check again','Coba pemeriksaan keamanan lagi','重试安全验证','セキュリティ確認を再試行','Reintentar verificación de seguridad'],
+['Connecting security check…','Menghubungkan pemeriksaan keamanan…','正在连接安全验证…','セキュリティ確認に接続中…','Conectando la verificación…'],
+['Loading Cloudflare widget…','Memuat widget Cloudflare…','正在加载 Cloudflare 验证…','Cloudflareウィジェットを読み込み中…','Cargando el widget de Cloudflare…'],
+['Token expired. Please try again.','Token kedaluwarsa. Tekan coba lagi.','验证已过期，请重试。','確認の有効期限が切れました。再試行してください。','La verificación ha caducado. Vuelve a intentarlo.'],
+['This request awaits admin confirmation. Shipping and bank details are not set. Do not transfer money.','Permintaan akan menunggu konfirmasi admin. Ongkir dan rekening belum ditetapkan. Jangan melakukan transfer.','请求将等待管理员确认。运费和收款账户尚未确定。请勿转账。','リクエストは管理者の確認待ちになります。送料と振込先は未定です。振込はしないでください。','La solicitud esperará confirmación. El envío y los datos bancarios no están definidos. No transfieras dinero.'],
+['Sending request…','Mengirim permintaan…','正在提交请求…','リクエストを送信中…','Enviando solicitud…'],
+['Order request','Permintaan pesanan','订单请求','注文リクエスト','Solicitud de pedido'],
+['Save order status link','Simpan tautan status pesanan','保存订单状态链接','注文状況のリンクを保存','Guardar enlace del estado'],
+['This link is private. Do not share it with others.','Tautan ini bersifat pribadi. Jangan bagikan kepada orang lain.','此链接为私密链接，请勿与他人分享。','このリンクは非公開です。他の人と共有しないでください。','Este enlace es privado. No lo compartas.'],
+['Request cancellation','Ajukan pembatalan','申请取消','キャンセルを申請','Solicitar cancelación'],
+['Request product changes','Ajukan perubahan produk','申请更换商品','商品の変更を申請','Solicitar cambios de productos'],
+['Notes for a change or cancellation','Catatan perubahan atau pembatalan','更改或取消说明','変更・キャンセルの詳細','Notas para cambios o cancelación'],
+['Your request was recorded for admin review. The order status has not changed automatically.','Permintaan tercatat untuk diperiksa admin. Status pesanan belum otomatis berubah.','请求已记录，等待管理员审核。订单状态未自动更改。','リクエストを記録しました。管理者が確認します。注文状況は自動的には変わりません。','Solicitud registrada para revisión. El estado del pedido no ha cambiado automáticamente.']
+];
+const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();
+})();
+</script>
 </body></html>

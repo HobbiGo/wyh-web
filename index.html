@@ -176,4 +176,33 @@ const caption=document.querySelector('.archive');if(caption)caption.textContent=
 const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
 })();
 </script>
+<script>
+(()=>{
+const previous=detail;
+let requestNumber=0;
+detail=function(p){
+ previous(p);const thisRequest=++requestNumber;
+ if(!p.sizes)return;
+ const box=document.getElementById('detail-view');
+ const status=el('p','notice','Memuat stok per ukuran…');status.setAttribute('role','status');
+ const sizes=box.querySelector('.sizes');if(!sizes)return;sizes.after(status);
+ const totals=Array.from(box.querySelectorAll('p.fine')).find(n=>n.textContent.includes('Stok total model:'));
+ if(totals)totals.textContent='Stok total model: '+p.stock+(p.category==='shoes'?' · Gabungan dua warna.':'');
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),10000);
+ fetch('https://wyh-api.wenyonghan927.workers.dev/variants?product_id='+encodeURIComponent(p.id),{cache:'no-store',signal:controller.signal}).then(async response=>{
+  if(!response.ok)throw Error('Stock unavailable');const data=await response.json();
+  if(data.product_id!==p.id||!Array.isArray(data.variants))throw Error('Invalid stock');
+  if(thisRequest!==requestNumber||!status.isConnected)return;
+  const stockBySize=new Map();for(const row of data.variants){if(typeof row.size==='string'&&(row.stock===null||(Number.isSafeInteger(row.stock)&&row.stock>=0)))stockBySize.set(row.size,row.stock);}
+  function update(){const selected=String(detailSize);const stock=stockBySize.get(selected);status.textContent=stock==null?'Stok ukuran '+selected+' belum tersedia.':'Stok ukuran '+(p.category==='shoes'?'EU ':'')+selected+': '+stock+(p.category==='shoes'?' pasang, gabungan Hitam/Brown Gold.':' pcs.');}
+  for(const b of sizes.querySelectorAll('button'))b.addEventListener('click',update);update();
+  for(const note of box.querySelectorAll('p.fine')){
+   if(note.textContent==='Pilihan ukuran katalog. Ketersediaan per ukuran belum dikonfirmasi.')note.textContent='Pilih ukuran untuk melihat stok dari database. Pembelian belum dibuka.';
+   if(note.textContent.includes('Ukuran EU 43–48. Stok setiap kombinasi'))note.textContent='Ukuran EU 43–48. Stok dihitung per ukuran; pembagian stok per warna belum ditentukan.';
+  }
+ }).catch(()=>{if(thisRequest===requestNumber&&status.isConnected)status.textContent='Stok per ukuran belum dapat dimuat. Pembelian tetap nonaktif.';}).finally(()=>clearTimeout(timer));
+};
+const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
+})();
+</script>
 </body></html>

@@ -302,6 +302,9 @@ async function showOrderReceipt(d,receipt){
  const link=el('a','under','Simpan tautan status pesanan');link.href=location.origin+location.pathname+'#request/'+encodeURIComponent(receipt.id)+'/'+encodeURIComponent(receipt.token);d.append(link,el('p','fine','Tautan ini bersifat pribadi. Jangan bagikan kepada orang lain.'));
  try{const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-request?id='+encodeURIComponent(receipt.id)+'&token='+encodeURIComponent(receipt.token),{cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error||'Status belum tersedia.');
  const labels={awaiting_confirmation:'Menunggu konfirmasi',awaiting_payment:'Menunggu pembayaran',paid:'Lunas',cancelled:'Dibatalkan',completed:'Selesai'};msg.textContent='Status: '+(labels[data.status]||data.status)+'. Tidak ada instruksi transfer otomatis.';
+ if(data.status==='cancelled'){const proof=el('a','btn wide','Cetak bukti pembatalan');proof.href='https://wyh-api.wenyonghan927.workers.dev/cancellation-receipt?id='+encodeURIComponent(receipt.id)+'&token='+encodeURIComponent(receipt.token);proof.href+='&lang='+(wyhLanguage==='en'?'en':'id');proof.target='_blank';proof.rel='noopener noreferrer';proof.referrerPolicy='no-referrer';d.append(proof,el('p','fine','Bukti pembatalan bukan bukti pengembalian dana.'));}
+ const support=el('section');support.append(el('h3','','Bantuan W.Y.H.'));d.append(support);
+ fetch('https://wyh-api.wenyonghan927.workers.dev/store-contact',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();const contact=await r.json();if(!support.isConnected)return;if(contact.store_name)support.firstChild.textContent='Bantuan '+contact.store_name;if(contact.contact_email)support.append(el('p','','Email: '+contact.contact_email));if(contact.contact_phone)support.append(el('p','','Telepon: '+contact.contact_phone));if(!contact.contact_email&&!contact.contact_phone)support.remove();}).catch(()=>support.remove());
  for(const item of data.items){d.append(el('p','',item.name+' · '+[item.size,item.color].filter(Boolean).join(' / ')+' · '+item.qty+' × '+money(item.unit_price_idr)));}
  d.append(el('p','','Subtotal produk: '+money(data.subtotal_idr)),el('p','fine','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.'));
  if(!['cancelled','completed'].includes(data.status)){
@@ -477,6 +480,12 @@ const rows=[
 ['Your request was recorded for admin review. The order status has not changed automatically.','Permintaan tercatat untuk diperiksa admin. Status pesanan belum otomatis berubah.','请求已记录，等待管理员审核。订单状态未自动更改。','リクエストを記録しました。管理者が確認します。注文状況は自動的には変わりません。','Solicitud registrada para revisión. El estado del pedido no ha cambiado automáticamente.']
 ];
 const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();
+})();
+</script>
+<script>
+(()=>{
+const rows=[['Print cancellation receipt','Cetak bukti pembatalan','打印取消凭证','キャンセル控えを印刷','Imprimir comprobante de cancelación'],['A cancellation receipt is not proof of a refund.','Bukti pembatalan bukan bukti pengembalian dana.','取消凭证不是退款凭证。','キャンセル控えは返金の証明ではありません。','El comprobante de cancelación no demuestra un reembolso.']];const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}
+const earlier=translatedText;const original=new Map();translatedText=function(text){const value=text.trim();const source=original.get(value)||value;let output;if(source.startsWith('Bantuan '))output=({en:'Support: ',id:'Bantuan ',zh:'客户支持：',ja:'サポート：',es:'Ayuda: '}[wyhLanguage])+source.slice(8);if(source.startsWith('Telepon: '))output=({en:'Phone: ',id:'Telepon: ',zh:'电话：',ja:'電話：',es:'Teléfono: '}[wyhLanguage])+source.slice(9);if(output!==undefined){original.set(output,source);return text.replace(value,output);}return earlier(text);};translatePage();
 })();
 </script>
 </body></html>

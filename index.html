@@ -205,4 +205,30 @@ detail=function(p){
 const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
 })();
 </script>
+<style>
+.wyh-color-options{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0 22px}.wyh-color-option{display:flex;align-items:center;gap:10px;padding:13px 18px;min-height:48px;border:1px solid #77634b;background:#281d16;color:#eee4d6;border-radius:3px;font-size:14px;letter-spacing:.025em}.wyh-color-option[aria-pressed=true]{border-color:#d5b367;background:#3a2b1e;box-shadow:inset 0 0 0 1px #d5b367}.wyh-color-option:focus-visible{outline:2px solid #f5ece0;outline-offset:4px}.wyh-color-dot{display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid #b49a73}.wyh-color-heading{font-size:14px;color:#e3d4bc;margin:20px 0 0}.wyh-stock-note{border:0!important;padding:8px 0!important;background:transparent!important;color:#cbbba5!important;line-height:1.7}.sizes button{min-width:44px;min-height:44px}
+</style>
+<script>
+(()=>{
+const prior=detail;
+detail=function(p){
+ prior(p);const box=document.getElementById('detail-view');
+ for(const node of box.querySelectorAll('div,p')){
+  if(node.childElementCount===0&&node.textContent.trim()==='Quantity')node.remove();
+ }
+ const select=box.querySelector('select[aria-label="Warna sepatu"]');
+ if(select){
+  const label=select.closest('label');const heading=el('p','wyh-color-heading','Warna: '+select.value);const group=el('div','wyh-color-options');group.setAttribute('role','group');group.setAttribute('aria-label','Pilihan warna sepatu');
+  for(const color of p.colors){const b=el('button','wyh-color-option');b.type='button';b.setAttribute('aria-pressed',String(color===select.value));const dot=el('span','wyh-color-dot');dot.style.background=color==='Hitam'?'#171412':'#92643c';dot.setAttribute('aria-hidden','true');b.append(dot,document.createTextNode(color));b.onclick=()=>{select.value=color;heading.textContent='Warna: '+color;for(const other of group.children)other.setAttribute('aria-pressed',String(other===b));};group.append(b);}
+  label.hidden=true;label.after(heading,group);
+ }
+ for(const node of box.querySelectorAll('p.fine')){
+  if(node.textContent.includes('Pilih ukuran untuk melihat stok dari database')||node.textContent.includes('Pilihan ukuran katalog.'))node.textContent='Pilih ukuran yang sesuai. Pemesanan belum dibuka.';
+  if(node.textContent.includes('Stok setiap kombinasi')||node.textContent.includes('pembagian stok per warna'))node.textContent='Ketersediaan dihitung per ukuran, gabungan dua warna.';
+ }
+ const status=box.querySelector('[role=status]');if(status)status.classList.add('wyh-stock-note');
+};
+const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
+})();
+</script>
 </body></html>

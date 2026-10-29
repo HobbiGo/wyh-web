@@ -219,7 +219,7 @@ detail=function(p){
  const select=box.querySelector('select[aria-label="Warna sepatu"]');
  if(select){
   const label=select.closest('label');const heading=el('p','wyh-color-heading','Warna: '+select.value);const group=el('div','wyh-color-options');group.setAttribute('role','group');group.setAttribute('aria-label','Pilihan warna sepatu');
-  for(const color of p.colors){const b=el('button','wyh-color-option');b.type='button';b.setAttribute('aria-pressed',String(color===select.value));const dot=el('span','wyh-color-dot');dot.style.background=color==='Hitam'?'#171412':'#92643c';dot.setAttribute('aria-hidden','true');b.append(dot,document.createTextNode(color));b.onclick=()=>{select.value=color;heading.textContent='Warna: '+color;for(const other of group.children)other.setAttribute('aria-pressed',String(other===b));};group.append(b);}
+  for(const color of p.colors){const b=el('button','wyh-color-option');b.type='button';b.dataset.color=color;b.setAttribute('aria-pressed',String(color===select.value));const dot=el('span','wyh-color-dot');dot.style.background=color==='Hitam'?'#171412':'#92643c';dot.setAttribute('aria-hidden','true');b.append(dot,document.createTextNode(color));b.onclick=()=>{select.value=color;heading.textContent='Warna: '+color;for(const other of group.children)other.setAttribute('aria-pressed',String(other===b));};group.append(b);}
   label.hidden=true;label.after(heading,group);
  }
  for(const node of box.querySelectorAll('p.fine')){
@@ -264,7 +264,7 @@ detail=function(p){older(p);const box=document.getElementById('detail-view'),but
  const controls=el('div','quantity');const minus=el('button','','−'),plus=el('button','','+'),number=el('span','','1');let qty=1,limit=0;
  minus.setAttribute('aria-label','Kurangi jumlah');plus.setAttribute('aria-label','Tambah jumlah');minus.onclick=()=>{qty=Math.max(1,qty-1);number.textContent=qty;};plus.onclick=()=>{qty=Math.min(limit||1,qty+1);number.textContent=qty;};controls.append(minus,number,plus);button.before(el('p','fine','Jumlah'),controls);
  const note=el('p','fine','Memeriksa stok…');button.after(note);
- function currentColor(){return box.querySelector('.wyh-color-option[aria-pressed=true]')?.textContent.trim()||'';}
+ function currentColor(){return box.querySelector('.wyh-color-option[aria-pressed=true]')?.dataset.color||'';}
  let stocks=new Map();
  function update(){limit=p.sizes?(stocks.get(String(detailSize))??0):(p.stock??0);limit=Math.min(20,limit);qty=Math.min(qty,Math.max(1,limit));number.textContent=qty;button.disabled=!p.catalogPublished||limit<1;note.textContent=limit>0?'Dapat ditambahkan ke keranjang. Pemesanan dan pembayaran belum dibuka.':'Stok belum tersedia untuk pilihan ini.';}
  if(p.sizes){fetch('https://wyh-api.wenyonghan927.workers.dev/variants?product_id='+encodeURIComponent(p.id),{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();const data=await r.json();if(data.product_id!==p.id||!Array.isArray(data.variants))throw Error();stocks=new Map(data.variants.filter(x=>Number.isSafeInteger(x.stock)&&x.stock>=0).map(x=>[String(x.size),x.stock]));if(button.isConnected)update();}).catch(()=>{if(note.isConnected)note.textContent='Stok belum dapat diperiksa. Muat ulang untuk mencoba lagi.';});}else update();
@@ -272,6 +272,81 @@ detail=function(p){older(p);const box=document.getElementById('detail-view'),but
  button.onclick=()=>{if(button.disabled)return;const size=p.sizes?String(detailSize):'',color=p.colors?currentColor():'';const existing=bag.find(x=>x.id===p.id&&x.size===size&&x.color===color);const allSameSize=bag.filter(x=>x.id===p.id&&x.size===size).reduce((n,x)=>n+x.qty,0);if(allSameSize+qty>limit){note.textContent='Jumlah dalam keranjang melebihi stok ukuran ini, termasuk pilihan warna lainnya.';return;}if(existing)existing.qty+=qty;else bag.push({id:p.id,size,color,qty});persist();openCart();};
 };
 counts();const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
+})();
+</script>
+<script>
+(()=>{
+// All entries use EN / ID / ZH / JA / ES. Model names remain catalogue identifiers.
+const rows=[
+['Main material','Bahan utama','主要材质','主な素材','Material principal'],
+['Napa sheepskin','Kulit domba napa','纳帕羊皮','ナパシープスキン','Piel de oveja napa'],
+['Full-grain cowhide','Kulit sapi full-grain','全粒面牛皮','フルグレイン牛革','Cuero vacuno de plena flor'],
+['Full-grain leather (cowhide)','Kulit sapi full-grain','全粒面牛皮','フルグレイン牛革','Cuero vacuno de plena flor'],
+['Grain leather (cowhide)','Kulit sapi grain','粒面牛皮','グレイン牛革','Cuero vacuno con grano'],
+['Goatskin','Kulit kambing','山羊皮','山羊革','Piel de cabra'],
+['Tumbled cowhide','Kulit sapi bertekstur tumbled','摔纹牛皮','シュリンク加工牛革','Cuero vacuno abatanado'],
+['Oil-tanned cowhide','Kulit sapi samak minyak','油鞣牛皮','オイル仕上げ牛革','Cuero vacuno curtido al aceite'],
+['Vegetable-tanned cowhide','Kulit sapi samak nabati','植鞣牛皮','植物タンニンなめし牛革','Cuero vacuno de curtido vegetal'],
+['Nappa sheepskin','Kulit domba nappa','纳帕羊皮','ナッパシープスキン','Piel de oveja nappa'],
+['Nubuck cowhide','Kulit sapi nubuck','磨砂牛皮','ヌバック牛革','Nobuk vacuno'],
+['Classic calfskin','Kulit anak sapi klasik','经典小牛皮','クラシックカーフレザー','Piel de ternera clásica'],
+['Add to bag','Tambah ke Keranjang','加入购物袋','バッグに追加','Añadir a la bolsa'],
+['Your shopping bag','Keranjang Anda','您的购物袋','ショッピングバッグ','Tu bolsa'],
+['Continue to checkout','Lanjut ke checkout','前往结账','購入手続きへ','Continuar al pago'],
+['Checkout','Checkout','结账','購入手続き','Finalizar compra'],
+['Recipient name','Nama penerima','收件人姓名','受取人氏名','Nombre del destinatario'],
+['Email','Email','电子邮箱','メールアドレス','Correo electrónico'],
+['Phone number','Nomor telepon','电话号码','電話番号','Número de teléfono'],
+['Full delivery address','Alamat lengkap pengiriman','完整收货地址','配送先住所','Dirección de entrega completa'],
+['Manual bank transfer','Transfer bank manual','手动银行转账','銀行振込','Transferencia bancaria manual'],
+['Bank details and shipping charges are not configured.','Rekening tujuan dan ongkir belum dikonfigurasi.','收款账户和运费尚未设置。','振込先と送料は未設定です。','Los datos bancarios y el envío aún no están configurados.'],
+['Place order — not available yet','Buat pesanan — belum tersedia','提交订单 — 暂未开放','注文する — 準備中','Realizar pedido — aún no disponible'],
+['No order number, stock reservation or payment has been created.','Belum ada nomor pesanan, reservasi stok, atau pembayaran yang dibuat.','尚未生成订单号、库存预留或付款。','注文番号の発行、在庫確保、支払いは行われていません。','No se ha creado ningún pedido, reserva de existencias ni pago.'],
+['Checkout is being prepared. Form data is not sent or saved. Do not transfer money.','Checkout sedang disiapkan. Data formulir belum dikirim atau disimpan. Jangan melakukan transfer.','结账功能正在准备中。表单数据不会发送或保存。请勿转账。','購入手続きは準備中です。入力内容は送信・保存されません。振込はしないでください。','El proceso de compra está en preparación. El formulario no se envía ni se guarda. No transfieras dinero.'],
+['Your bag is empty.','Keranjang masih kosong.','购物袋为空。','バッグは空です。','Tu bolsa está vacía.'],
+['Remove','Hapus','删除','削除','Eliminar'],
+['Quantity','Jumlah','数量','数量','Cantidad'],
+['Black','Hitam','黑色','ブラック','Negro'],
+['Brown Gold','Brown Gold','金棕色','ゴールドブラウン','Marrón dorado'],
+['Colour','Warna','颜色','カラー','Color'],
+['Choose a size. Ordering is not open yet.','Pilih ukuran yang sesuai. Pemesanan belum dibuka.','请选择尺码。订购尚未开放。','サイズを選択してください。注文はまだ受け付けていません。','Elige una talla. Los pedidos aún no están disponibles.'],
+['Availability is counted per size, across both colours.','Ketersediaan dihitung per ukuran, gabungan dua warna.','库存按尺码统计，包含两种颜色。','在庫はサイズ別で、2色の合計です。','Las existencias se cuentan por talla, entre ambos colores.'],
+['Catalogue. Ordering and payments are not open yet.','Katalog produk. Pemesanan dan pembayaran belum dibuka.','产品目录。订购和付款尚未开放。','商品カタログ。注文・支払いはまだ利用できません。','Catálogo. Los pedidos y pagos aún no están disponibles.'],
+['Catalogue — purchasing not open yet','Katalog — pembelian belum dibuka','产品目录 — 暂未开放购买','カタログ — 販売準備中','Catálogo — compra aún no disponible'],
+['Can be added to the bag. Ordering and payments are not open yet.','Dapat ditambahkan ke keranjang. Pemesanan dan pembayaran belum dibuka.','可以加入购物袋，但订购和付款尚未开放。','バッグに追加できます。注文・支払いはまだ利用できません。','Se puede añadir a la bolsa. Los pedidos y pagos aún no están disponibles.'],
+['Checking stock…','Memeriksa stok…','正在检查库存…','在庫を確認中…','Comprobando existencias…'],
+['Loading stock by size…','Memuat stok per ukuran…','正在加载尺码库存…','サイズ別在庫を読み込み中…','Cargando existencias por talla…'],
+['Shipping and other applicable charges are not included. This is not a payable total.','Belum termasuk ongkir dan biaya lain, bila berlaku. Ini bukan total pembayaran.','未包含运费及其他适用费用。这不是应付总额。','送料やその他の費用は含まれていません。支払総額ではありません。','No incluye envío ni otros cargos aplicables. No es el total a pagar.'],
+['This is not an order yet. Prices and stock must be verified by the server before ordering.','Belum menjadi pesanan. Harga dan stok perlu diperiksa kembali oleh server sebelum pemesanan.','这还不是订单。下单前需由服务器核实价格和库存。','まだ注文ではありません。注文前にサーバーで価格と在庫を確認する必要があります。','Aún no es un pedido. El servidor debe verificar precios y existencias antes de pedir.'],
+['← Back to bag','← Kembali ke keranjang','← 返回购物袋','← バッグに戻る','← Volver a la bolsa'],
+['Latest catalogue loaded. Checkout and payments are not active.','Katalog terbaru dimuat. Checkout dan pembayaran belum aktif.','最新目录已加载。结账和付款尚未启用。','最新カタログを読み込みました。購入・支払いは未対応です。','Catálogo actualizado. La compra y los pagos no están activos.'],
+['Search the W.Y.H. collection','Cari koleksi W.Y.H.','搜索 W.Y.H. 系列','W.Y.H. コレクションを検索','Buscar la colección W.Y.H.'],
+['Search product names…','Cari nama produk…','搜索产品名称…','商品名を検索…','Buscar nombres de productos…'],
+['Product information and availability. Ordering is not open yet.','Informasi produk dan ketersediaan. Pemesanan belum dibuka.','产品信息及库存。订购尚未开放。','商品情報と在庫状況。注文はまだ受け付けていません。','Información y disponibilidad. Los pedidos aún no están disponibles.']
+];
+const languages=['en','id','zh','ja','es'];
+for(const row of rows)for(let i=0;i<languages.length;i++){canonicalText.set(row[i],row[0]);dictionaries[languages[i]].set(row[0],row[i]);}
+const materialSources=[
+['Napa Sheepskin (Domba).','Napa sheepskin'],['Full-Grain Cowhide (Sapi).','Full-grain cowhide'],['Full-Grain Leather (Sapi).','Full-grain leather (cowhide)'],['Grain Leather (Sapi).','Grain leather (cowhide)'],['Goat Leather (Kambing).','Goatskin'],['Tumbled Leather (Sapi).','Tumbled cowhide'],['Oil-Tanned Leather (Sapi).','Oil-tanned cowhide'],['Veg-Tanned Cowhide (Sapi).','Vegetable-tanned cowhide'],['Nappa Leather (Domba).','Nappa sheepskin'],['Nubuck Leather (Sapi).','Nubuck cowhide'],['Classic Calfskin (Sapi).','Classic calfskin']
+];
+for(const [source,key] of materialSources){const materialRow=rows.find(r=>r[0]===key);const canonical='Main material: '+key;for(let i=0;i<languages.length;i++){const text=rows[0][i]+': '+materialRow[i];canonicalText.set(text,canonical);dictionaries[languages[i]].set(canonical,text);}canonicalText.set('Bahan utama: '+source,canonical);}
+// Dynamic text round trips through English, so switching language also updates existing stock labels.
+const beforeTranslation=translatedText;
+const dynamicCache=new Map();
+const terms={en:['Stock for size','pairs, across Black/Brown Gold.','pcs.','Total model stock','Across both colours.','Colour','Size','Product subtotal'],id:['Stok ukuran','pasang, gabungan Hitam/Brown Gold.','pcs.','Stok total model','Gabungan dua warna.','Warna','Ukuran','Subtotal produk'],zh:['尺码库存','双，黑色/金棕色合计。','件。','款式总库存','两种颜色合计。','颜色','尺码','商品小计'],ja:['サイズ別在庫','足、ブラック・ゴールドブラウン合計。','点。','モデルの総在庫','2色の合計。','カラー','サイズ','商品小計'],es:['Existencias de la talla','pares, entre Negro/Marrón dorado.','unidades.','Existencias totales del modelo','Ambos colores.','Color','Talla','Subtotal de productos']};
+translatedText=function(text){
+ const trimmed=text.trim();const canonical=dynamicCache.get(trimmed)||trimmed;const t=terms[wyhLanguage];let out;
+ let m=canonical.match(/^Stok ukuran (EU )?([^:]+): (\d+) (pasang, gabungan Hitam\/Brown Gold\.|pcs\.)$/);
+ if(m)out=t[0]+' '+(m[1]||'')+m[2]+': '+m[3]+' '+(m[4].startsWith('pasang')?t[1]:t[2]);
+ m=canonical.match(/^Stok total model: (\d+)( · Gabungan dua warna\.)?$/);if(m)out=t[3]+': '+m[1]+(m[2]?' · '+t[4]:'');
+ m=canonical.match(/^Warna: (Hitam|Brown Gold)$/);if(m){const colorRow=rows.find(r=>r[1]===m[1]);out=t[5]+': '+colorRow[languages.indexOf(wyhLanguage)];}
+ m=canonical.match(/^(?:Ukuran|Size)( EU)?: (.+)$/);if(m)out=t[6]+(m[1]||'')+': '+m[2];
+ m=canonical.match(/^Subtotal produk: (.+)$/);if(m)out=t[7]+': '+m[1];
+ if(out!==undefined){dynamicCache.set(out,canonical);return text.replace(trimmed,out);}
+ return beforeTranslation(text);
+};
+for(const old of ['Product type and material information; not live inventory.','Keterangan jenis dan bahan; bukan informasi stok langsung.','产品类型与材质信息，并非实时库存。','種類と素材の情報です。リアルタイム在庫ではありません。','Información de tipo y material, no inventario en tiempo real.'])canonicalText.set(old,'Product information and availability. Ordering is not open yet.');
+translatePage();
 })();
 </script>
 </body></html>

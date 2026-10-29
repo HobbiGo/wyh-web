@@ -142,4 +142,38 @@ fetch(api+'/products',{cache:'no-store',signal:controller.signal}).then(async re
 })();
 </script>
 
+<script>
+(()=>{
+for(const p of products){
+ if(p.category==='jacket')p.sizes=['S','M','L','XL','XXL'];
+ if(p.category==='shoes'){p.sizes=['43','44','45','46','47','48'];p.colors=['Hitam','Brown Gold'];}
+}
+const beforeTidyDetail=detail;
+detail=function(p){
+ beforeTidyDetail(p);
+ const box=document.getElementById('detail-view');
+ for(const node of box.querySelectorAll('p.fine')){
+  if(node.textContent.includes('Sizes transcribed'))node.textContent='Pilihan ukuran katalog. Ketersediaan per ukuran belum dikonfirmasi.';
+  if(node.textContent.includes('Variant options have not'))node.textContent='Dijual per item, tanpa pilihan ukuran.';
+ }
+ const content=box.querySelector('.detail > div:not(.photo)');
+ if(content){
+  if(p.category==='shoes'){
+   const label=el('label','fine','Warna pilihan katalog');const select=el('select');select.setAttribute('aria-label','Warna sepatu');
+   for(const color of p.colors){const option=el('option','',color);option.value=color;select.append(option);}
+   label.append(select);const notice=el('p','fine','Ukuran EU 43–48. Stok setiap kombinasi warna dan ukuran belum dikonfirmasi.');
+   const quantity=content.querySelector('.quantity');content.insertBefore(label,quantity);content.insertBefore(notice,quantity);
+   for(const node of content.querySelectorAll('div'))if(node.textContent==='Size: '+detailSize){node.firstChild.textContent='Ukuran EU: '+detailSize;break;}
+   for(const button of content.querySelectorAll('.sizes button'))button.addEventListener('click',()=>{const sizes=content.querySelector('.sizes');if(sizes&&sizes.previousElementSibling)sizes.previousElementSibling.textContent='Ukuran EU: '+button.textContent;});
+  }
+  const quantity=content.querySelector('.quantity');if(quantity){if(quantity.previousElementSibling?.textContent==='Quantity')quantity.previousElementSibling.remove();quantity.remove();}
+ }
+ for(const node of box.querySelectorAll('.notice'))if(node.textContent.includes('This cart is stored'))node.textContent='Katalog produk. Pemesanan dan pembayaran belum dibuka.';
+};
+for(const node of document.querySelectorAll('p'))if(node.textContent==='Search the archived collection')node.textContent='Cari koleksi W.Y.H.';
+const query=document.getElementById('query');if(query)query.placeholder='Cari nama produk…';
+const caption=document.querySelector('.archive');if(caption)caption.textContent='KATALOG W.Y.H. · Harga dan bahan tersedia · Pembelian belum dibuka';
+const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
+})();
+</script>
 </body></html>

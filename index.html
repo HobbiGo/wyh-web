@@ -255,7 +255,42 @@ function checkoutForm(d,subtotal){
  for(const [text,name,type,autocomplete] of [['Nama penerima','name','text','name'],['Email','email','email','email'],['Nomor telepon','phone','tel','tel']]){const label=el('label','',text),input=el('input');input.name=name;input.type=type;input.autocomplete=autocomplete;label.append(input);form.append(label);}
  const addressLabel=el('label','','Alamat lengkap pengiriman');const address=el('textarea');address.autocomplete='street-address';addressLabel.append(address);form.append(addressLabel);
  form.append(el('h3','','Transfer bank manual'),el('p','','Rekening tujuan dan ongkir belum dikonfigurasi.'),el('p','','Subtotal produk: '+money(subtotal)));
- const submit=el('button','btn wide','Buat pesanan — belum tersedia');submit.type='button';submit.disabled=true;form.append(submit,el('p','fine','Belum ada nomor pesanan, reservasi stok, atau pembayaran yang dibuat.'));d.append(form);
+ const submit=el('button','btn wide','Buat pesanan — belum tersedia');submit.type='button';submit.disabled=true;form.append(submit,el('p','fine','Permintaan akan menunggu konfirmasi admin. Ongkir dan rekening belum ditetapkan. Jangan melakukan transfer.'));d.append(form);
+ const intro=Array.from(d.querySelectorAll('.notice'))[0];if(intro)intro.textContent='Kirim permintaan pesanan untuk diperiksa admin. Ini bukan pembayaran dan belum mereservasi stok.';
+ const consent=el('label','fine');const agree=el('input');agree.type='checkbox';agree.style.cssText='display:inline;width:auto;margin-right:8px';consent.append(agree,document.createTextNode('Saya setuju data kontak dan alamat ini dikirim kepada W.Y.H. untuk memproses permintaan pesanan.'));submit.before(consent);
+ for(const input of form.querySelectorAll('input:not([type=checkbox]),textarea')){input.required=true;input.maxLength=input.tagName==='TEXTAREA'?1500:254;}
+ submit.textContent='Kirim permintaan pesanan';submit.disabled=false;
+ const key=crypto.randomUUID();const payloadItems=bag.map(x=>({id:x.id,size:x.size,color:x.color,qty:x.qty}));let busy=false;
+ submit.onclick=async()=>{
+  if(busy)return;if(!form.reportValidity())return;if(!agree.checked){agree.focus();return;}
+  const inputs=form.querySelectorAll('input:not([type=checkbox])');const customer={name:inputs[0].value.trim(),email:inputs[1].value.trim(),phone:inputs[2].value.trim(),address:address.value.trim()};
+  busy=true;submit.disabled=true;const status=el('p','notice','Mengirim permintaan…');status.setAttribute('role','status');form.append(status);
+  try{const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idempotency_key:key,customer,items:payloadItems})});const result=await response.json();if(!response.ok)throw Error(result.error||'Permintaan belum dapat dikirim.');
+   if(typeof result.id!=='string'||typeof result.token!=='string')throw Error('Respons belum dapat dipastikan. Jangan kirim ulang melalui checkout baru.');
+   const receipt={id:result.id,token:result.token};try{sessionStorage.setItem('wyh-last-request',JSON.stringify(receipt));}catch{}
+   bag=[];persist();showOrderReceipt(d,receipt);
+  }catch(error){status.textContent=error.message+' Data formulir tetap di halaman ini. Tidak ada instruksi pembayaran.';submit.disabled=false;}finally{busy=false;}
+ };
+}
+async function showOrderReceipt(d,receipt){
+ d.replaceChildren();const close=el('button','close','×');close.setAttribute('aria-label','Tutup');close.onclick=()=>d.close();d.append(close,el('h2','','Permintaan pesanan'),el('p','fine',receipt.id));
+ const msg=el('p','notice','Memuat status…');msg.setAttribute('role','status');d.append(msg);
+ const link=el('a','under','Simpan tautan status pesanan');link.href=location.origin+location.pathname+'#request/'+encodeURIComponent(receipt.id)+'/'+encodeURIComponent(receipt.token);d.append(link,el('p','fine','Tautan ini bersifat pribadi. Jangan bagikan kepada orang lain.'));
+ try{const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-request?id='+encodeURIComponent(receipt.id)+'&token='+encodeURIComponent(receipt.token),{cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error||'Status belum tersedia.');
+ const labels={awaiting_confirmation:'Menunggu konfirmasi',awaiting_payment:'Menunggu pembayaran',paid:'Lunas',cancelled:'Dibatalkan',completed:'Selesai'};msg.textContent='Status: '+(labels[data.status]||data.status)+'. Tidak ada instruksi transfer otomatis.';
+ for(const item of data.items){d.append(el('p','',item.name+' · '+[item.size,item.color].filter(Boolean).join(' / ')+' · '+item.qty+' × '+money(item.unit_price_idr)));}
+ d.append(el('p','','Subtotal produk: '+money(data.subtotal_idr)),el('p','fine','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.'));
+ if(!['cancelled','completed'].includes(data.status)){
+  const label=el('label','','Catatan perubahan atau pembatalan');const note=el('textarea');note.maxLength=2000;note.style.cssText='width:100%;min-height:100px;background:#2c2119;color:#f5ece0;padding:12px;box-sizing:border-box';label.append(note);d.append(label);
+  const cancel=el('button','btn outline wide','Ajukan pembatalan'),change=el('button','btn wide','Ajukan perubahan produk');
+  async function requestAction(action){if(!note.value.trim()){note.focus();return;}if(!window.confirm(action==='cancel'?'Kirim permintaan pembatalan ke admin?':'Kirim permintaan perubahan ke admin?'))return;cancel.disabled=true;change.disabled=true;
+   try{const r=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-request-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...receipt,action,note:note.value.trim()})});const out=await r.json();if(!r.ok)throw Error(out.error||'Permintaan belum terkirim.');d.append(el('p','notice','Permintaan tercatat untuk diperiksa admin. Status pesanan belum otomatis berubah.'));}
+   catch(error){d.append(el('p','notice',error.message));cancel.disabled=false;change.disabled=false;}
+  }
+  cancel.onclick=()=>requestAction('cancel');change.onclick=()=>requestAction('request_change');d.append(cancel,change);
+ }
+ }catch(error){msg.textContent=error.message;}
+
 }
 openCart=function(){renderShoppingBag();const d=document.getElementById('cart-dialog');d.classList.add('cart-dialog');if(!d.open)d.showModal();};
 const older=detail;
@@ -264,13 +299,15 @@ detail=function(p){older(p);const box=document.getElementById('detail-view'),but
  const controls=el('div','quantity');const minus=el('button','','−'),plus=el('button','','+'),number=el('span','','1');let qty=1,limit=0;
  minus.setAttribute('aria-label','Kurangi jumlah');plus.setAttribute('aria-label','Tambah jumlah');minus.onclick=()=>{qty=Math.max(1,qty-1);number.textContent=qty;};plus.onclick=()=>{qty=Math.min(limit||1,qty+1);number.textContent=qty;};controls.append(minus,number,plus);button.before(el('p','fine','Jumlah'),controls);
  const note=el('p','fine','Memeriksa stok…');button.after(note);
- function currentColor(){return box.querySelector('.wyh-color-option[aria-pressed=true]')?.dataset.color||'';}
+ function currentColor(){return box.querySelector('.wyh-color-option[aria-pressed=true]')?.textContent.trim()||'';}
  let stocks=new Map();
  function update(){limit=p.sizes?(stocks.get(String(detailSize))??0):(p.stock??0);limit=Math.min(20,limit);qty=Math.min(qty,Math.max(1,limit));number.textContent=qty;button.disabled=!p.catalogPublished||limit<1;note.textContent=limit>0?'Dapat ditambahkan ke keranjang. Pemesanan dan pembayaran belum dibuka.':'Stok belum tersedia untuk pilihan ini.';}
  if(p.sizes){fetch('https://wyh-api.wenyonghan927.workers.dev/variants?product_id='+encodeURIComponent(p.id),{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();const data=await r.json();if(data.product_id!==p.id||!Array.isArray(data.variants))throw Error();stocks=new Map(data.variants.filter(x=>Number.isSafeInteger(x.stock)&&x.stock>=0).map(x=>[String(x.size),x.stock]));if(button.isConnected)update();}).catch(()=>{if(note.isConnected)note.textContent='Stok belum dapat diperiksa. Muat ulang untuk mencoba lagi.';});}else update();
  for(const b of box.querySelectorAll('.sizes button'))b.addEventListener('click',update);
  button.onclick=()=>{if(button.disabled)return;const size=p.sizes?String(detailSize):'',color=p.colors?currentColor():'';const existing=bag.find(x=>x.id===p.id&&x.size===size&&x.color===color);const allSameSize=bag.filter(x=>x.id===p.id&&x.size===size).reduce((n,x)=>n+x.qty,0);if(allSameSize+qty>limit){note.textContent='Jumlah dalam keranjang melebihi stok ukuran ini, termasuk pilihan warna lainnya.';return;}if(existing)existing.qty+=qty;else bag.push({id:p.id,size,color,qty});persist();openCart();};
 };
+function openRequestLink(){const parts=location.hash.slice(1).split('/');if(parts[0]==='request'&&parts[1]&&parts[2]){const d=document.getElementById('cart-dialog');if(!d.open)d.showModal();showOrderReceipt(d,{id:decodeURIComponent(parts[1]),token:decodeURIComponent(parts[2])});}}
+window.addEventListener('hashchange',openRequestLink);openRequestLink();
 counts();const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
 })();
 </script>

@@ -306,7 +306,13 @@ async function showOrderReceipt(d,receipt){
  const support=el('section');support.append(el('h3','','Bantuan W.Y.H.'));d.append(support);
  fetch('https://wyh-api.wenyonghan927.workers.dev/store-contact',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();const contact=await r.json();if(!support.isConnected)return;if(contact.store_name)support.firstChild.textContent='Bantuan '+contact.store_name;if(contact.contact_email)support.append(el('p','','Email: '+contact.contact_email));if(contact.contact_phone)support.append(el('p','','Telepon: '+contact.contact_phone));if(!contact.contact_email&&!contact.contact_phone)support.remove();}).catch(()=>support.remove());
  for(const item of data.items){d.append(el('p','',item.name+' · '+[item.size,item.color].filter(Boolean).join(' / ')+' · '+item.qty+' × '+money(item.unit_price_idr)));}
- d.append(el('p','','Subtotal produk: '+money(data.subtotal_idr)),el('p','fine','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.'));
+ d.append(el('p','','Subtotal produk: '+money(data.subtotal_idr)));
+ const hasShipping=Number.isSafeInteger(data.shipping_idr)&&data.shipping_idr>=0&&Number.isSafeInteger(data.total_idr)&&data.total_idr===data.subtotal_idr+data.shipping_idr;
+ if(hasShipping){
+  const shippingLine=el('p');shippingLine.append(el('span','','Shipping cost: '),el('span','',money(data.shipping_idr)));d.append(shippingLine);
+  const totalLine=el('p');totalLine.append(el('strong','','Order total: '),el('span','',money(data.total_idr)));d.append(totalLine);
+  const baseLine=el('p','fine');baseLine.setAttribute('data-wyh-base-idr','true');baseLine.append(el('span','','Base order total in IDR: '),el('span','',new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(data.total_idr)));d.append(baseLine,el('p','fine','Shipping has been reviewed by admin. This is not a payment request. Stock is not reserved. Do not transfer money.'));
+ }else d.append(el('p','fine','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.'));
  if(!['cancelled','completed'].includes(data.status)){
   const label=el('label','','Catatan perubahan atau pembatalan');const note=el('textarea');note.maxLength=2000;note.style.cssText='width:100%;min-height:100px;background:#2c2119;color:#f5ece0;padding:12px;box-sizing:border-box';label.append(note);d.append(label);
   const cancel=el('button','btn outline wide','Ajukan pembatalan'),change=el('button','btn wide','Ajukan perubahan produk');
@@ -687,7 +693,7 @@ function install(){for(const id of ['catalog-grid','featured']){const grid=docum
  const cart=document.getElementById('cart-dialog');if(cart&&!cart.querySelector('.wyh-currency-picker')){const title=cart.querySelector('h2');if(title)title.after(makePicker());}
 }
 function refresh(){install();
- const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('script,style,textarea,input,select,.wyh-currency-picker')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});let node;
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('script,style,textarea,input,select,.wyh-currency-picker,[data-wyh-base-idr]')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});let node;
  while(node=walker.nextNode()){let record=originals.get(node);if(record&&node.nodeValue!==record.last){originals.delete(node);record=null;}
  if(!record){if(!node.nodeValue.includes('Rp'))continue;record={original:node.nodeValue,last:node.nodeValue};originals.set(node,record);}
  const next=converted(record.original);record.last=next;if(node.nodeValue!==next)node.nodeValue=next;
@@ -701,6 +707,18 @@ let queued=false;const observer=new MutationObserver(()=>{if(queued)return;queue
 async function load(){if(busy)return;busy=true;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const r=await fetch('https://open.er-api.com/v6/latest/IDR',{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!r.ok)throw Error();const data=await r.json();if(!valid(data))throw Error();quote=data;try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}}catch{}finally{clearTimeout(timer);busy=false;refresh();}}
 const style=document.createElement('style');style.textContent='.wyh-currency-picker{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 18px;color:#d8be8b}.wyh-currency-picker button{min-width:52px;min-height:42px;border:1px solid #ad8956;border-radius:6px;background:#2c2119;color:#f3e5cc;padding:8px 12px;cursor:pointer}.wyh-currency-picker button[aria-pressed=true]{background:#c9a66b;color:#211710}.wyh-currency-picker button:disabled{opacity:.45;cursor:wait}.wyh-currency-message{flex-basis:100%;font-size:11px;line-height:1.6}.wyh-currency-source{font-size:10px;color:inherit;text-decoration:underline}';style.textContent+=' .wyh-currency-card{display:flex;flex-direction:column;min-width:0;height:100%}.wyh-currency-card>.product{display:flex;flex:1;flex-direction:column;align-items:stretch;min-width:0;text-align:left;border:0;background:transparent;padding:0;color:var(--text)}.wyh-currency-card>.product>.photo{width:100%;aspect-ratio:1;flex:0 0 auto;margin:0;box-sizing:border-box;border:1px solid #b4956526;border-radius:6px;background-color:#2d2118}.wyh-currency-card>.product>h3{font:14px/1.55 Arial,sans-serif;min-height:4.65em;margin:14px 0 0;color:#f3e8d8;overflow-wrap:anywhere}.wyh-currency-card>.product>.fine{font:12px/1.6 Arial,sans-serif;min-height:3.2em;margin:8px 0 12px;color:#c6b29c}.wyh-currency-card>.product>.price{margin-top:auto;padding-top:4px;font-size:16px;line-height:1.5;color:#ead4a6;min-height:28px}.wyh-currency-card>.wyh-currency-picker{margin:5px 0 0;gap:5px}.wyh-currency-card .wyh-currency-picker button{min-width:44px;padding:6px 9px;font-size:12px}.wyh-currency-card .wyh-currency-message{font-size:10px}@media(max-width:700px){.wyh-currency-card>.product>h3{font-size:12px}.wyh-currency-card>.product>.fine{font-size:11px;min-height:4.8em}.wyh-currency-card>.product>.price{font-size:14px}}';document.head.append(style);
 refresh();if(!valid(quote)||Date.now()-quote.time_last_update_unix*1000>24*3600000)load();setInterval(()=>{if(document.visibilityState==='visible'){refresh();if(!valid(quote)||Date.now()-quote.time_last_update_unix*1000>24*3600000)load();}},3600000);
+})();
+
+</script>
+
+<script>
+(() => {
+const rows=[
+['Shipping cost:','Ongkir:','运费：','送料：','Envío:'],
+['Order total:','Total pesanan:','订单总额：','注文合計：','Total del pedido:'],
+['Base order total in IDR:','Total dasar pesanan dalam IDR:','印尼盾订单基础总额：','IDRでの基本注文合計：','Total base del pedido en IDR:'],
+['Shipping has been reviewed by admin. This is not a payment request. Stock is not reserved. Do not transfer money.','Ongkir telah diperiksa admin. Ini bukan tagihan pembayaran. Stok belum direservasi. Jangan melakukan transfer.','运费已由管理员审核。这不是付款请求。库存尚未预留，请勿转账。','送料は管理者が確認しました。支払いの請求ではありません。在庫は未確保です。送金しないでください。','El administrador ha revisado el envío. No es una solicitud de pago. El inventario no está reservado. No transfieras dinero.']
+];const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();
 })();
 
 </script>

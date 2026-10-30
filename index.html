@@ -249,17 +249,22 @@ function renderShoppingBag(){
  d.append(el('h3','','Subtotal produk: '+(unknown?'Belum dapat dihitung':money(subtotal))),el('p','fine','Belum termasuk ongkir dan biaya lain, bila berlaku. Ini bukan total pembayaran.'));
  const checkout=el('button','btn wide','Lanjut ke checkout');checkout.disabled=!bag.length||unknown;checkout.onclick=()=>checkoutForm(d,subtotal);d.append(checkout);
 }
+function wyhRequestValidation(customer){if(!customer.name||customer.name.length>150)return 'Enter the recipient name (up to 150 characters).';if(!/^\S+@\S+\.\S+$/.test(customer.email)||customer.email.length>254)return 'Enter a valid email address.';if(customer.phone.length<6||customer.phone.length>40)return 'Enter a phone number with 6–40 characters.';if(customer.address.length<10||customer.address.length>1500)return 'Enter the full delivery address (10–1500 characters).';return '';}
 function checkoutForm(d,subtotal){
- d.replaceChildren();const back=el('button','back','← Kembali ke keranjang');back.onclick=renderShoppingBag;const close=el('button','close','×');close.onclick=()=>d.close();close.setAttribute('aria-label','Tutup checkout');d.append(close,back,el('h2','','Checkout'),el('p','notice','Checkout sedang disiapkan. Data formulir belum dikirim atau disimpan. Jangan melakukan transfer.'));
+ d.replaceChildren();const back=el('button','back','← Kembali ke keranjang');back.onclick=renderShoppingBag;const close=el('button','close','×');close.onclick=()=>d.close();close.setAttribute('aria-label','Tutup checkout');d.append(close,back,el('h2','','Review order request'),el('p','notice','Checkout sedang disiapkan. Data formulir belum dikirim atau disimpan. Jangan melakukan transfer.'));
  const form=el('form','wyh-checkout');form.onsubmit=e=>e.preventDefault();
  for(const [text,name,type,autocomplete] of [['Nama penerima','name','text','name'],['Email','email','email','email'],['Nomor telepon','phone','tel','tel']]){const label=el('label','',text),input=el('input');input.name=name;input.type=type;input.autocomplete=autocomplete;label.append(input);form.append(label);}
  const addressLabel=el('label','','Alamat lengkap pengiriman');const address=el('textarea');address.autocomplete='street-address';addressLabel.append(address);form.append(addressLabel);
- form.append(el('h3','','Transfer bank manual'),el('p','','Rekening tujuan dan ongkir belum dikonfigurasi.'),el('p','','Subtotal produk: '+money(subtotal)));
+ form.append(el('h3','','Order request summary'),el('p','fine','No payment is taken here. Admin will review shipping and the final IDR total.'),el('p','','Subtotal produk: '+money(subtotal)));
+ const baseAmount=el('p','fine');baseAmount.setAttribute('data-wyh-base-idr','true');baseAmount.append(el('span','','Base product subtotal in IDR: '),el('span','',new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:2,maximumFractionDigits:2}).format(subtotal)));form.append(baseAmount);
  const submit=el('button','btn wide','Buat pesanan — belum tersedia');submit.type='button';submit.disabled=true;form.append(submit,el('p','fine','Permintaan akan menunggu konfirmasi admin. Ongkir dan rekening belum ditetapkan. Jangan melakukan transfer.'));d.append(form);
  const intro=Array.from(d.querySelectorAll('.notice'))[0];if(intro)intro.textContent='Kirim permintaan pesanan untuk diperiksa admin. Ini bukan pembayaran dan belum mereservasi stok.';
  const consent=el('label','fine');const agree=el('input');agree.type='checkbox';agree.style.cssText='display:inline;width:auto;margin-right:8px';consent.append(agree,document.createTextNode('Saya setuju data kontak dan alamat ini dikirim kepada W.Y.H. untuk memproses permintaan pesanan.'));submit.before(consent);
  for(const input of form.querySelectorAll('input:not([type=checkbox]),textarea')){input.required=true;input.maxLength=input.tagName==='TEXTAREA'?1500:254;}
- submit.textContent='Kirim permintaan pesanan';submit.disabled=true;
+ address.minLength=10;const customerInputs=form.querySelectorAll('input:not([type=checkbox])');customerInputs[0].maxLength=150;customerInputs[1].maxLength=254;customerInputs[2].minLength=6;customerInputs[2].maxLength=40;
+ const status=el('p','notice');status.hidden=true;status.setAttribute('role','status');status.setAttribute('aria-live','polite');submit.before(status);
+ function showRequestMessage(message){status.textContent=message;status.hidden=false;status.scrollIntoView({block:'nearest',behavior:'smooth'});}
+ submit.textContent='Send request for admin review';submit.disabled=true;
  let turnstileToken='',widgetId=null,requestsEnabled=false;
  const challenge=el('div');const challengeStatus=el('p','fine','Memuat pemeriksaan keamanan…');submit.before(challenge,challengeStatus);
  const retry=el('button','btn outline','Coba pemeriksaan keamanan lagi');retry.type='button';retry.hidden=true;submit.before(retry);
@@ -286,14 +291,15 @@ function checkoutForm(d,subtotal){
  retry.onclick=loadSecurity;loadSecurity();
  const key=crypto.randomUUID();const payloadItems=bag.map(x=>({id:x.id,size:x.size,color:x.color,qty:x.qty}));let busy=false;
  submit.onclick=async()=>{
-  if(busy||!turnstileToken||!requestsEnabled)return;if(!form.reportValidity())return;if(!agree.checked){agree.focus();return;}
+  if(busy)return;if(!requestsEnabled){showRequestMessage('Order requests are currently unavailable.');return;}if(!turnstileToken){showRequestMessage('Complete the security check before sending.');return;}
   const inputs=form.querySelectorAll('input:not([type=checkbox])');const customer={name:inputs[0].value.trim(),email:inputs[1].value.trim(),phone:inputs[2].value.trim(),address:address.value.trim()};
-  busy=true;submit.disabled=true;const status=el('p','notice','Mengirim permintaan…');status.setAttribute('role','status');form.append(status);
+  const validation=wyhRequestValidation(customer);if(validation){showRequestMessage(validation);form.reportValidity();return;}if(!form.reportValidity()){showRequestMessage('Check the required fields above.');return;}if(!agree.checked){showRequestMessage('Please agree to send your details for admin review.');agree.focus();return;}
+  busy=true;submit.disabled=true;submit.textContent='Sending request…';showRequestMessage('Sending your request. No payment is being taken.');
   try{const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idempotency_key:key,customer,items:payloadItems,turnstile_token:turnstileToken})});const result=await response.json();if(!response.ok)throw Error(result.error||'Permintaan belum dapat dikirim.');
    if(typeof result.id!=='string'||typeof result.token!=='string')throw Error('Respons belum dapat dipastikan. Jangan kirim ulang melalui checkout baru.');
    const receipt={id:result.id,token:result.token};try{sessionStorage.setItem('wyh-last-request',JSON.stringify(receipt));}catch{}
    bag=[];persist();showOrderReceipt(d,receipt);
-  }catch(error){status.textContent=error.message+' Data formulir tetap di halaman ini. Tidak ada instruksi pembayaran.';turnstileToken='';submit.disabled=true;if(widgetId!==null&&window.turnstile)window.turnstile.reset(widgetId);}finally{busy=false;}
+  }catch(error){showRequestMessage(String(error.message||'Request could not be confirmed.'));const retained=el('p','fine','Your details remain in this form. No payment instructions have been issued.');if(!form.querySelector('.wyh-retained-note')){retained.classList.add('wyh-retained-note');status.after(retained);}turnstileToken='';submit.disabled=true;retry.hidden=false;if(widgetId!==null&&window.turnstile)window.turnstile.reset(widgetId);}finally{busy=false;submit.textContent='Send request for admin review';}
  };
 }
 async function showOrderReceipt(d,receipt){
@@ -719,6 +725,31 @@ const rows=[
 ['Base order total in IDR:','Total dasar pesanan dalam IDR:','印尼盾订单基础总额：','IDRでの基本注文合計：','Total base del pedido en IDR:'],
 ['Shipping has been reviewed by admin. This is not a payment request. Stock is not reserved. Do not transfer money.','Ongkir telah diperiksa admin. Ini bukan tagihan pembayaran. Stok belum direservasi. Jangan melakukan transfer.','运费已由管理员审核。这不是付款请求。库存尚未预留，请勿转账。','送料は管理者が確認しました。支払いの請求ではありません。在庫は未確保です。送金しないでください。','El administrador ha revisado el envío. No es una solicitud de pago. El inventario no está reservado. No transfieras dinero.']
 ];const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();
+})();
+
+</script>
+
+<script>
+(() => {
+const rows=[
+['Review order request','Periksa permintaan pesanan','检查订单申请','注文リクエストを確認','Revisar solicitud de pedido'],
+['Order request summary','Ringkasan permintaan pesanan','订单申请摘要','注文リクエスト概要','Resumen de la solicitud'],
+['No payment is taken here. Admin will review shipping and the final IDR total.','Tidak ada pembayaran di sini. Admin akan memeriksa ongkir dan total akhir IDR.','此处不会收款。管理员将审核运费和最终印尼盾总额。','ここで支払いは行われません。管理者が送料とIDRの最終合計を確認します。','Aquí no se cobra. El administrador revisará el envío y el total final en IDR.'],
+['Base product subtotal in IDR:','Subtotal dasar produk dalam IDR:','印尼盾商品基础小计：','IDRでの商品基本小計：','Subtotal base de productos en IDR:'],
+['Send request for admin review','Kirim permintaan untuk diperiksa admin','提交申请供管理员审核','管理者へ確認を依頼','Enviar solicitud para revisión'],
+['Sending request…','Mengirim permintaan…','正在提交申请…','リクエストを送信中…','Enviando solicitud…'],
+['Sending your request. No payment is being taken.','Mengirim permintaan. Tidak ada pembayaran yang diproses.','正在提交申请，不会处理付款。','リクエストを送信しています。支払いは処理されません。','Enviando tu solicitud. No se está cobrando ningún pago.'],
+['Enter the recipient name (up to 150 characters).','Isi nama penerima, maksimal 150 karakter.','请输入收件人姓名（最多150个字符）。','受取人名を150文字以内で入力してください。','Introduce el nombre del destinatario, hasta 150 caracteres.'],
+['Enter a valid email address.','Isi alamat email yang valid.','请输入有效邮箱。','有効なメールアドレスを入力してください。','Introduce un correo electrónico válido.'],
+['Enter a phone number with 6–40 characters.','Isi nomor telepon sepanjang 6–40 karakter.','请输入6至40个字符的电话号码。','電話番号を6～40文字で入力してください。','Introduce un teléfono de entre 6 y 40 caracteres.'],
+['Enter the full delivery address (10–1500 characters).','Isi alamat pengiriman lengkap, 10–1500 karakter.','请输入完整收货地址（10至1500个字符）。','配送先住所を10～1500文字で入力してください。','Introduce la dirección completa, entre 10 y 1500 caracteres.'],
+['Check the required fields above.','Periksa isian wajib di atas.','请检查上方必填项。','上の必須項目を確認してください。','Revisa los campos obligatorios de arriba.'],
+['Please agree to send your details for admin review.','Centang persetujuan pengiriman data untuk diperiksa admin.','请同意提交资料供管理员审核。','管理者の確認のために情報を送信することに同意してください。','Acepta enviar tus datos para revisión.'],
+['Order requests are currently unavailable.','Pengiriman permintaan pesanan sedang tidak tersedia.','暂时无法提交订单申请。','現在注文リクエストは送信できません。','Las solicitudes de pedido no están disponibles.'],
+['Complete the security check before sending.','Selesaikan pemeriksaan keamanan sebelum mengirim.','提交前请完成安全验证。','送信前にセキュリティ確認を完了してください。','Completa la verificación de seguridad antes de enviar.'],
+['Your details remain in this form. No payment instructions have been issued.','Data tetap berada di formulir ini. Tidak ada instruksi pembayaran yang diterbitkan.','资料仍保留在此表单中，尚未发出付款指示。','入力情報はこのフォームに残っています。支払い案内は発行されていません。','Tus datos permanecen en este formulario. No se han emitido instrucciones de pago.']
+];const langs=['en','id','zh','ja','es'];for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();
+const style=document.createElement('style');style.textContent='.wyh-checkout{line-height:1.6}.wyh-checkout .notice{border:1px solid #c9a66b;padding:12px;border-radius:6px;line-height:1.6;font-size:14px}.wyh-checkout button.btn{min-height:50px;font-size:13px;line-height:1.5;white-space:normal;padding:12px}.wyh-checkout input,.wyh-checkout textarea{font-size:16px}.wyh-checkout input:invalid:not(:placeholder-shown){outline-offset:2px}';document.head.append(style);
 })();
 
 </script>

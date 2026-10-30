@@ -310,7 +310,7 @@ async function showOrderReceipt(d,receipt){
  if(!['cancelled','completed'].includes(data.status)){
   const label=el('label','','Catatan perubahan atau pembatalan');const note=el('textarea');note.maxLength=2000;note.style.cssText='width:100%;min-height:100px;background:#2c2119;color:#f5ece0;padding:12px;box-sizing:border-box';label.append(note);d.append(label);
   const cancel=el('button','btn outline wide','Ajukan pembatalan'),change=el('button','btn wide','Ajukan perubahan produk');
-  async function requestAction(action){if(!note.value.trim()){note.focus();return;}if(!window.confirm(action==='cancel'?'Kirim permintaan pembatalan ke admin?':'Kirim permintaan perubahan ke admin?'))return;cancel.disabled=true;change.disabled=true;
+  async function requestAction(action){if(!note.value.trim()){note.focus();return;}if(!await window.wyhConfirmOrderAction(action,note.value.trim()))return;cancel.disabled=true;change.disabled=true;
    try{const r=await fetch('https://wyh-api.wenyonghan927.workers.dev/order-request-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...receipt,action,note:note.value.trim()})});const out=await r.json();if(!r.ok)throw Error(out.error||'Permintaan belum terkirim.');d.append(el('p','notice','Permintaan tercatat untuk diperiksa admin. Status pesanan belum otomatis berubah.'));}
    catch(error){d.append(el('p','notice',error.message));cancel.disabled=false;change.disabled=false;}
   }
@@ -513,6 +513,54 @@ function closeGuide(){dialog.close();if(returnFocus?.isConnected)returnFocus.foc
 function openGuide(p,trigger){returnFocus=trigger;const t=text[wyhLanguage]||text.en;dialog.replaceChildren();const head=el('div','wyh-guide-head'),title=el('h2','',t.title);title.id='wyh-guide-title';const close=el('button','wyh-guide-close','×');close.type='button';close.setAttribute('aria-label',t.close);close.onclick=closeGuide;head.append(title,close);dialog.append(head,el('h3','',p.name),el('p','',p.category==='shoes'?t.shoe:t.jacket));const wrap=el('div','wyh-guide-scroll'),table=el('table','wyh-guide-table'),thead=el('thead'),heading=el('tr');const shoe=p.category==='shoes';const feet=footCopy[wyhLanguage]||footCopy.en;heading.append(el('th','',t.size),el('th','',shoe?feet.header:t.measurement));if(shoe)heading.append(el('th','',inchLabels[wyhLanguage]||inchLabels.en));thead.append(heading);table.append(thead);const body=el('tbody');if(shoe){for(const [size,cm] of footChart){const row=el('tr');row.append(el('td','','EU '+size),el('td','',cm+' cm'),el('td','',(Number(cm)/2.54).toFixed(2)+' in'));body.append(row);}}else{for(const size of p.sizes||[]){const row=el('tr');row.append(el('td','',size),el('td','',t.pending));body.append(row);}}table.append(body);wrap.append(table);dialog.append(wrap,el('p','wyh-guide-pending',shoe?feet.notice:t.notice),el('h3','',t.how));const steps=el('ol');for(const step of p.category==='shoes'?t.shoeSteps:t.jacketSteps)steps.append(el('li','',step));dialog.append(steps,el('p','fine',t.stock));const back=el('button','btn wide',t.back);back.type='button';back.onclick=closeGuide;dialog.append(back);dialog.showModal();close.focus();}
 dialog.addEventListener('close',()=>{if(returnFocus?.isConnected)returnFocus.focus();});
 const previousDetail=detail;detail=function(p){previousDetail(p);if(!['shoes','jacket'].includes(p.category))return;const box=document.getElementById('detail-view'),sizes=box.querySelector('.sizes');if(!sizes||box.querySelector('.wyh-size-guide-trigger'))return;const button=el('button','wyh-size-guide-trigger',(text[wyhLanguage]||text.en).button);button.type='button';button.setAttribute('aria-haspopup','dialog');button.onclick=()=>openGuide(p,button);sizes.before(button);};
+const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
+})();
+</script>
+<style>
+.wyh-confirm-dialog{box-sizing:border-box;width:min(540px,calc(100% - 28px));max-height:90dvh;margin:auto;padding:0;border:1px solid #bc9657;border-radius:10px;background:linear-gradient(145deg,#38271c,#20160f);color:#f5ece0;box-shadow:0 24px 90px #0009;overflow:auto}.wyh-confirm-dialog::backdrop{background:#080503b8}.wyh-confirm-content{padding:32px}.wyh-confirm-eyebrow{font:11px/1.6 Arial,sans-serif;letter-spacing:3px;color:#d5b367;text-transform:uppercase;margin:0 0 15px}.wyh-confirm-heading{font:30px/1.25 Georgia,serif;color:#f9edd8;margin:0 0 18px}.wyh-confirm-description{font-size:15px;line-height:1.8;color:#d9c9b7;margin:0 0 22px}.wyh-confirm-note{border:1px solid #a786524d;background:#160f0b66;padding:16px;margin-bottom:24px;overflow-wrap:anywhere;white-space:pre-wrap}.wyh-confirm-note small{display:block;color:#d5b367;margin-bottom:8px;font-size:12px}.wyh-confirm-actions{display:flex;gap:12px;flex-wrap:wrap}.wyh-confirm-actions button{flex:1 1 170px;min-height:50px;padding:13px 16px;border-radius:3px;font:14px/1.4 Arial,sans-serif;letter-spacing:.2px;cursor:pointer;touch-action:manipulation}.wyh-confirm-back{background:transparent;border:1px solid #aa8b60;color:#e5d6c4}.wyh-confirm-send{background:#d5b367;border:1px solid #d5b367;color:#21150f}.wyh-confirm-actions button:focus-visible{outline:3px solid #fff0cd;outline-offset:4px}@media(max-width:600px){.wyh-confirm-content{padding:24px}.wyh-confirm-heading{font-size:26px}}
+</style>
+<script>
+(()=>{
+let active=false;
+const copy={
+ en:{brand:'W.Y.H. · Customer Care',cancelTitle:'Request a cancellation?',changeTitle:'A change to your order?',cancelBody:'We will send your cancellation request to the W.Y.H. team for review. Your order will not be cancelled automatically, and this does not initiate a refund.',changeBody:'We will send your requested changes to the W.Y.H. team. Products, availability and any price difference must be reviewed before your order is updated.',note:'Your note',back:'Go back',cancelSend:'Send cancellation request',changeSend:'Send change request'},
+ id:{brand:'W.Y.H. · Layanan Pelanggan',cancelTitle:'Ajukan pembatalan pesanan?',changeTitle:'Ingin menyesuaikan pesanan?',cancelBody:'Permintaan pembatalan akan diteruskan ke tim W.Y.H. untuk diperiksa. Pesanan belum dibatalkan secara otomatis dan ini bukan proses pengembalian dana.',changeBody:'Tim W.Y.H. akan meninjau perubahan yang Anda ajukan. Produk, ketersediaan, dan kemungkinan selisih harga perlu diperiksa sebelum pesanan diperbarui.',note:'Catatan Anda',back:'Kembali',cancelSend:'Kirim pengajuan pembatalan',changeSend:'Kirim pengajuan perubahan'},
+ zh:{brand:'W.Y.H. · 客户服务',cancelTitle:'申请取消订单？',changeTitle:'想调整订单？',cancelBody:'取消申请将发送给 W.Y.H. 团队审核。订单不会自动取消，此操作也不会启动退款。',changeBody:'W.Y.H. 团队将审核您的修改请求。更新订单前需核实商品、库存和可能的差价。',note:'您的说明',back:'返回',cancelSend:'提交取消申请',changeSend:'提交修改申请'},
+ ja:{brand:'W.Y.H. · カスタマーケア',cancelTitle:'キャンセルを申請しますか？',changeTitle:'注文内容を変更しますか？',cancelBody:'キャンセル申請をW.Y.H.チームに送信し、確認を行います。注文は自動的にはキャンセルされず、返金手続きも開始されません。',changeBody:'W.Y.H.チームが変更内容を確認します。注文を更新する前に、商品、在庫、差額を確認する必要があります。',note:'お客様のメモ',back:'戻る',cancelSend:'キャンセル申請を送信',changeSend:'変更申請を送信'},
+ es:{brand:'W.Y.H. · Atención al cliente',cancelTitle:'¿Solicitar la cancelación?',changeTitle:'¿Quieres modificar tu pedido?',cancelBody:'Enviaremos tu solicitud de cancelación al equipo W.Y.H. para su revisión. El pedido no se cancelará automáticamente y esto no inicia un reembolso.',changeBody:'El equipo W.Y.H. revisará tus cambios. Antes de actualizar el pedido se comprobarán los productos, las existencias y cualquier diferencia de precio.',note:'Tu nota',back:'Volver',cancelSend:'Enviar solicitud de cancelación',changeSend:'Enviar solicitud de cambios'}
+};
+window.wyhConfirmOrderAction=function(action,note){
+ if(active)return Promise.resolve(false);active=true;
+ const t=copy[wyhLanguage]||copy.en;const cancelling=action==='cancel';const focus=document.activeElement;
+ return new Promise(resolve=>{
+  const dialog=document.createElement('dialog');dialog.className='wyh-confirm-dialog';dialog.setAttribute('aria-labelledby','wyh-confirm-title');dialog.setAttribute('aria-describedby','wyh-confirm-description');
+  const content=el('div','wyh-confirm-content');content.append(el('p','wyh-confirm-eyebrow',t.brand));const title=el('h2','wyh-confirm-heading',cancelling?t.cancelTitle:t.changeTitle);title.id='wyh-confirm-title';const description=el('p','wyh-confirm-description',cancelling?t.cancelBody:t.changeBody);description.id='wyh-confirm-description';content.append(title,description);
+  if(note){const block=el('div','wyh-confirm-note');block.append(el('small','',t.note),document.createTextNode(note));content.append(block);}
+  const controls=el('div','wyh-confirm-actions'),back=el('button','wyh-confirm-back',t.back),send=el('button','wyh-confirm-send',cancelling?t.cancelSend:t.changeSend);back.type='button';send.type='button';controls.append(back,send);content.append(controls);dialog.append(content);document.body.append(dialog);
+  let result=false,finished=false;function finish(){if(finished)return;finished=true;active=false;dialog.remove();if(focus?.isConnected)focus.focus();resolve(result);}
+  back.onclick=()=>dialog.close();send.onclick=()=>{result=true;dialog.close();};dialog.addEventListener('close',finish,{once:true});dialog.addEventListener('cancel',()=>{result=false;});
+  try{dialog.showModal();back.focus();}catch{finish();}
+ });
+};
+})();
+</script>
+<style>
+.products{align-items:stretch;gap:32px 22px}
+.products>.product{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;height:100%;min-width:0;text-align:left;border:0;background:transparent;padding:0;color:var(--text)}
+.products>.product>.photo{width:100%;aspect-ratio:1;flex:0 0 auto;margin:0;box-sizing:border-box;border:1px solid #b4956526;border-radius:6px;background-color:#2d2118}
+.products>.product>h3{font:14px/1.55 Arial,sans-serif;min-height:4.65em;margin:14px 0 0;padding:0;color:#f3e8d8;overflow-wrap:anywhere}
+.products>.product>.fine{font:12px/1.6 Arial,sans-serif;min-height:3.2em;margin:8px 0 12px;color:#c6b29c}
+.products>.product>.price{margin-top:auto;padding-top:4px;font-size:16px;line-height:1.5;color:#ead4a6;min-height:28px}
+.wyh-derby-crop:before{inset:13.3838% 0!important;background-image:var(--products2)!important;background-size:227.272727% auto!important;background-position:92.063492% 24.795322%!important}
+@media(max-width:700px){.products{gap:28px 14px}.products>.product>h3{font-size:12px;min-height:4.65em}.products>.product>.fine{font-size:11px;min-height:4.8em}.products>.product>.price{font-size:14px}}
+</style>
+<script>
+(()=>{
+const oldPhoto=photo;
+photo=function(p){const node=oldPhoto(p);if(p.id==='black-biker'||p.id==='espresso-racer'){
+ const black=p.id==='black-biker';node.style.setProperty('--sheet','url("./'+(black?'wyh-biker-taupe.png':'wyh-espresso-taupe.png')+'"),var(--jackets)');node.style.setProperty('--size','100% 100%, 200% 100%');node.style.setProperty('--pos','center, '+(black?'left center':'right center'));
+ }if(p.id==='brown-derby')node.classList.add('wyh-derby-crop');return node;};
+const featured=document.getElementById('featured');if(featured){featured.replaceChildren();for(const p of products)featured.append(productCard(p));}catalog();
 const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
 })();
 </script>

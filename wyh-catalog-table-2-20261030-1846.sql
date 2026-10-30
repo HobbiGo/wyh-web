@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS wyh_inventory_events (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ product_id TEXT NOT NULL,
+ event_type TEXT NOT NULL,
+ details_json TEXT NOT NULL,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

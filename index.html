@@ -158,8 +158,8 @@ detail=function(p){
  }
  const content=box.querySelector('.detail > div:not(.photo)');
  if(content){
-  if(p.category==='shoes'){
-   const label=el('label','fine','Warna pilihan katalog');const select=el('select');select.setAttribute('aria-label','Warna sepatu');
+  if(Array.isArray(p.colors)&&p.colors.length){
+   const label=el('label','fine','Warna pilihan katalog');const select=el('select');select.setAttribute('aria-label','Pilihan warna');
    for(const color of p.colors){const option=el('option','',color);option.value=color;select.append(option);}
    label.append(select);const notice=el('p','fine','Ukuran EU 43–48. Stok setiap kombinasi warna dan ukuran belum dikonfirmasi.');
    const quantity=content.querySelector('.quantity');content.insertBefore(label,quantity);content.insertBefore(notice,quantity);
@@ -216,7 +216,7 @@ detail=function(p){
  for(const node of box.querySelectorAll('div,p')){
   if(node.childElementCount===0&&node.textContent.trim()==='Quantity')node.remove();
  }
- const select=box.querySelector('select[aria-label="Warna sepatu"]');
+ const select=box.querySelector('select[aria-label="Pilihan warna"]');
  if(select){
   const label=select.closest('label');const heading=el('p','wyh-color-heading','Warna: '+select.value);const group=el('div','wyh-color-options');group.setAttribute('role','group');group.setAttribute('aria-label','Pilihan warna sepatu');
   for(const color of p.colors){const b=el('button','wyh-color-option');b.type='button';b.dataset.color=color;b.setAttribute('aria-pressed',String(color===select.value));const dot=el('span','wyh-color-dot');dot.style.background=color==='Hitam'?'#171412':'#92643c';dot.setAttribute('aria-hidden','true');b.append(dot,document.createTextNode(color));b.onclick=()=>{select.value=color;heading.textContent='Warna: '+color;for(const other of group.children)other.setAttribute('aria-pressed',String(other===b));};group.append(b);}
@@ -235,14 +235,14 @@ const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=p
 <script>
 (()=>{
 let bag=[];const verifiedSizeStock=new Map();const storageKey='wyh-shopping-bag-v1';
-try{const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');if(Array.isArray(saved))bag=saved.filter(x=>products.some(p=>p.id===x.id)&&typeof x.size==='string'&&typeof x.color==='string'&&Number.isInteger(x.qty)&&x.qty>=1&&x.qty<=20);}catch{}
+try{const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');if(Array.isArray(saved))bag=saved.filter(x=>x&&typeof x.id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(x.id)&&typeof x.size==='string'&&typeof x.color==='string'&&Number.isInteger(x.qty)&&x.qty>=1&&x.qty<=20);}catch{}
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify(bag));}catch{}counts();}
 function counts(){const n=bag.reduce((a,x)=>a+x.qty,0);document.querySelectorAll('[data-count]').forEach(node=>node.textContent=n);}
 function renderShoppingBag(){
  const d=document.getElementById('cart-dialog');d.replaceChildren();
  const close=el('button','close','×');close.setAttribute('aria-label','Tutup keranjang');close.onclick=()=>d.close();d.append(close,el('h2','','Keranjang Anda'),el('p','fine','Belum menjadi pesanan. Harga dan stok perlu diperiksa kembali oleh server sebelum pemesanan.'));
  let subtotal=0,unknown=false;
- for(const line of bag){const p=products.find(x=>x.id===line.id);if(!p)continue;const row=el('div','wyh-cart-row');row.append(el('h3','',p.name),el('p','fine',[line.size?'Ukuran '+line.size:'',line.color?'Warna '+line.color:''].filter(Boolean).join(' · ')));
+ for(const line of bag){const p=products.find(x=>x.id===line.id);if(!p){unknown=true;const missing=el('div','wyh-cart-row');missing.append(el('p','','Produk belum tersedia atau katalog belum selesai dimuat. / Product unavailable or catalogue still loading.'));const remove=el('button','','Hapus / Remove');remove.type='button';remove.onclick=()=>{bag=bag.filter(x=>x!==line);persist();renderShoppingBag();};missing.append(remove);d.append(missing);continue;}const row=el('div','wyh-cart-row');row.append(el('h3','',p.name),el('p','fine',[line.size?'Ukuran '+line.size:'',line.color?'Warna '+line.color:''].filter(Boolean).join(' · ')));
  if(p.catalogPublished&&Number.isSafeInteger(p.price)){subtotal+=p.price*line.qty;row.append(el('p','',money(p.price*line.qty)));}else{unknown=true;row.append(el('p','','Harga terbaru belum tersedia'));}
  const controls=el('div','wyh-cart-controls');const minus=el('button','','−'),plus=el('button','','+'),remove=el('button','','Hapus');minus.setAttribute('aria-label','Kurangi '+p.name);plus.setAttribute('aria-label','Tambah '+p.name);minus.onclick=()=>{line.qty--;bag=bag.filter(x=>x.qty>0);persist();renderShoppingBag();};plus.onclick=async()=>{plus.disabled=true;try{let available=p.stock;if(p.sizes){const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/variants?product_id='+encodeURIComponent(p.id),{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(data.product_id!==p.id||!Array.isArray(data.variants))throw Error();available=data.variants.find(v=>String(v.size)===line.size)?.stock;}if(!Number.isSafeInteger(available)||available<0)throw Error();const used=bag.filter(x=>x.id===line.id&&x.size===line.size).reduce((sum,x)=>sum+x.qty,0);if(used+1>available||line.qty>=20){info('Batas stok','Jumlah untuk ukuran ini sudah mencapai batas, termasuk warna lainnya.');return;}line.qty++;persist();renderShoppingBag();}catch{info('Stok belum dapat diperiksa','Jumlah tidak ditambah. Coba lagi setelah koneksi tersedia.');}finally{plus.disabled=false;}};remove.onclick=()=>{bag=bag.filter(x=>x!==line);persist();renderShoppingBag();};controls.append(minus,el('span','',line.qty),plus,remove);row.append(controls);d.append(row);}
  if(!bag.length)d.append(el('p','','Keranjang masih kosong.'));
@@ -824,4 +824,28 @@ const style=node('style');style.textContent='#wyh-payment-demo:not([open]){displ
 </script>
 <script>
 (()=>{const row=['Demo only. This does not pay or change this order request.','Hanya demo. Ini tidak membayar atau mengubah permintaan pesanan ini.','仅供演示，不会付款或更改此订单申请。','デモ専用です。この注文リクエストの支払いや変更は行いません。','Solo demo. No paga ni modifica esta solicitud de pedido.'];const langs=['en','id','zh','ja','es'];for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}translatePage();})();
+</script>
+
+<script>
+(() => {
+const originalPhoto=photo,knownIds=new Set(products.map(p=>p.id));
+photo=function(p){if(!p.image_url)return originalPhoto(p);const wrap=el('div','photo wyh-dynamic-photo'),image=document.createElement('img');image.src=p.image_url;image.alt=p.name;image.loading='lazy';image.decoding='async';image.onerror=()=>{image.remove();wrap.append(el('span','fine','Foto belum tersedia / Photo unavailable'));};wrap.append(image);return wrap;};
+const oldDetail=detail;detail=function(p){oldDetail(p);if(!knownIds.has(p.id)){const guide=document.querySelector('#detail-view .wyh-size-guide-trigger');if(guide)guide.remove();}if(p._catalogHidden){const box=document.getElementById('detail-view');box.append(el('p','notice','Produk ini tidak lagi tersedia di katalog. Hapus dari keranjang sebelum mengirim permintaan.'));for(const b of box.querySelectorAll('button.btn.wide'))b.disabled=true;}};
+catalog=function(){const grid=document.getElementById('catalog-grid'),q=document.getElementById('query').value.toLowerCase().trim();grid.replaceChildren();const found=products.filter(p=>!p._catalogHidden&&(filter==='all'||p.category===filter)&&p.name.toLowerCase().includes(q));for(const p of found)grid.append(productCard(p));if(!found.length)grid.append(el('p','','Tidak ada produk yang tersedia / No available products.'));document.querySelectorAll('#chips button').forEach(b=>b.classList.toggle('active',b.dataset.id===filter));};
+const note=el('p','fine','Memeriksa katalog admin… / Checking catalogue…');document.getElementById('featured').before(note);
+async function load(){let after='',rows=[],complete=false;for(let page=0;page<20;page++){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let data;try{const response=await fetch('https://wyh-api.wenyonghan927.workers.dev/products'+(after?'?after='+encodeURIComponent(after):''),{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error();data=await response.json();}finally{clearTimeout(timer);}
+ if(data.catalog_version!==2){note.textContent='Katalog lama tetap digunakan. Pembaruan katalog admin belum aktif.';return;}
+ if(!Array.isArray(data.products))throw Error();rows.push(...data.products);if(!data.has_more){complete=true;break;}if(typeof data.next_cursor!=='string'||data.next_cursor===after)throw Error();after=data.next_cursor;
+ }
+ if(!complete)throw Error('Catalogue exceeds initial 1000-product loading window');
+ const seen=new Set();for(const row of rows){if(!row||typeof row.id!=='string'||typeof row.name!=='string'||!Number.isSafeInteger(row.price_idr)||row.price_idr<=0||!Number.isSafeInteger(row.stock)||row.stock<0||!['travel','wallet','shoes','jacket'].includes(row.category)||seen.has(row.id))throw Error('Invalid catalogue');seen.add(row.id);if(row.image_url&&!/^https:\/\/hobbigo\.github\.io\/wyh-web\/[A-Za-z0-9._%\-]+$/.test(row.image_url))throw Error('Invalid photo');}
+ for(const p of products){p._catalogHidden=!seen.has(p.id);if(p._catalogHidden){p.catalogPublished=false;p.price=null;p.stock=0;}}
+ for(const row of rows){let p=products.find(x=>x.id===row.id);if(!p){p={id:row.id};products.push(p);}Object.assign(p,{name:row.name,price:row.price_idr,stock:row.stock,material:typeof row.description==='string'?row.description:'',category:row.category,catalogPublished:true,_catalogHidden:false,image_url:row.image_url||'',stock_scope:row.stock_scope});if(Array.isArray(row.sizes)&&row.sizes.length)p.sizes=row.sizes.map(String);else delete p.sizes;if(Array.isArray(row.colors)&&row.colors.length)p.colors=row.colors.map(String);else delete p.colors;}
+ const featured=document.getElementById('featured');featured.replaceChildren();for(const p of products.filter(x=>!x._catalogHidden))featured.append(productCard(p));catalog();const [page,id]=location.hash.slice(1).split('/');if(page==='product'){const p=products.find(x=>x.id===id);if(p)detail(p);}note.textContent='Katalog tersambung ke admin. / Catalogue connected to admin.';
+}
+load().catch(()=>{note.textContent='Katalog admin belum dapat disinkronkan. Tampilan sebelumnya dipertahankan; muat ulang untuk mencoba lagi. / Catalogue sync unavailable. Reload to retry.';});
+const style=el('style');style.textContent='.wyh-dynamic-photo{display:flex;align-items:center;justify-content:center;overflow:hidden;background-image:none!important}.wyh-dynamic-photo img{display:block;width:100%;height:100%;object-fit:contain}.wyh-dynamic-photo .fine{padding:12px}';document.head.append(style);
+})();
+
 </script>

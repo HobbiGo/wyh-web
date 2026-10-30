@@ -662,3 +662,43 @@ window.wyhLocaleAudit={rows,translate:translatedText};
 })();
 </script>
 </body></html>
+
+<script>
+(() => {
+'use strict';
+let quote=null,selected='IDR',busy=false;
+const cacheKey='wyh-idr-rates-v1';
+try{const saved=localStorage.getItem('wyh-currency');if(['IDR','USD','EUR'].includes(saved))selected=saved;}catch{}
+const valid=q=>q&&q.base_code==='IDR'&&q.result==='success'&&Number.isFinite(q.time_last_update_unix)&&q.time_last_update_unix*1000<=Date.now()+300000&&Date.now()-q.time_last_update_unix*1000<48*3600000&&['USD','EUR'].every(k=>Number.isFinite(q.rates?.[k])&&q.rates[k]>0);
+try{const q=JSON.parse(localStorage.getItem(cacheKey));if(valid(q))quote=q;}catch{}
+const originals=new WeakMap(),pickers=new Set();
+const pattern=/Rp[\s\u00a0]*([0-9]+(?:\.[0-9]{3})*(?:,[0-9]{2})?)/g;
+const texts={id:['Estimasi kurs harian. Pesanan tetap IDR. Diperbarui: ','Kurs belum tersedia. Harga tetap IDR.'],en:['Daily rate estimate. Orders remain in IDR. Updated: ','Rates unavailable. Prices remain in IDR.'],zh:['每日汇率估算。订单仍以印尼盾记录。更新时间：','汇率暂不可用。价格仍以印尼盾显示。'],ja:['日次為替による概算。注文はIDRで記録。更新：','為替情報を取得できません。価格はIDRで表示されます。'],es:['Estimación con tipo diario. Pedidos en IDR. Actualizado: ','Tipo no disponible. Los precios siguen en IDR.']};
+function converted(text){const currency=valid(quote)?selected:'IDR';return text.replace(pattern,(all,amount)=>{
+ if(currency==='IDR')return all;
+ const n=Number(amount.replace(/\./g,'').replace(',','.'));if(!Number.isFinite(n))return all;
+ return (currency==='USD'?'US$':'€')+new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n*quote.rates[currency]);
+});}
+function makePicker(){const box=document.createElement('div');box.className='wyh-currency-picker';box.setAttribute('role','group');box.setAttribute('aria-label','Currency / Mata uang');
+ for(const [code,label] of [['IDR','IDR'],['USD','US$'],['EUR','€']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.currency=code;b.onclick=()=>{selected=code;try{localStorage.setItem('wyh-currency',code);}catch{}refresh();};box.append(b);}
+ const note=document.createElement('small');note.className='wyh-currency-message';box.append(note);const source=document.createElement('a');source.href='https://www.exchangerate-api.com';source.target='_blank';source.rel='noopener noreferrer';source.textContent='ExchangeRate-API';source.className='wyh-currency-source';box.append(source);pickers.add(box);return box;}
+function install(){for(const id of ['catalog-grid','featured']){const grid=document.getElementById(id);if(grid&&!grid.nextElementSibling?.classList.contains('wyh-currency-picker'))grid.after(makePicker());}
+ const detail=document.getElementById('detail-view'),price=detail?.querySelector('.price');if(price&&!detail.querySelector('.wyh-currency-picker'))price.after(makePicker());}
+function refresh(){install();
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('script,style,textarea,input,select,.wyh-currency-picker')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});let node;
+ while(node=walker.nextNode()){let record=originals.get(node);if(record&&node.nodeValue!==record.last){originals.delete(node);record=null;}
+ if(!record){if(!node.nodeValue.includes('Rp'))continue;record={original:node.nodeValue,last:node.nodeValue};originals.set(node,record);}
+ const next=converted(record.original);record.last=next;if(node.nodeValue!==next)node.nodeValue=next;
+ }
+ const lang=document.documentElement.lang||'en',t=texts[lang]||texts.en;const message=valid(quote)?t[0]+new Intl.DateTimeFormat(lang==='id'?'id-ID':'en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Jakarta'}).format(new Date(quote.time_last_update_unix*1000))+' WIB.':t[1];
+ for(const box of pickers){if(!box.isConnected){pickers.delete(box);continue;}for(const b of box.querySelectorAll('button')){const code=b.dataset.currency,active=code===(valid(quote)?selected:'IDR');b.disabled=code!=='IDR'&&!valid(quote);b.setAttribute('aria-pressed',String(active));}
+ const note=box.querySelector('small');if(note.textContent!==message)note.textContent=message;
+ }
+}
+let queued=false;const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refresh();});});observer.observe(document.body,{childList:true,subtree:true,characterData:true});observer.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+async function load(){if(busy)return;busy=true;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const r=await fetch('https://open.er-api.com/v6/latest/IDR',{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});if(!r.ok)throw Error();const data=await r.json();if(!valid(data))throw Error();quote=data;try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}}catch{}finally{clearTimeout(timer);busy=false;refresh();}}
+const style=document.createElement('style');style.textContent='.wyh-currency-picker{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 18px;color:#d8be8b}.wyh-currency-picker button{min-width:52px;min-height:42px;border:1px solid #ad8956;border-radius:6px;background:#2c2119;color:#f3e5cc;padding:8px 12px;cursor:pointer}.wyh-currency-picker button[aria-pressed=true]{background:#c9a66b;color:#211710}.wyh-currency-picker button:disabled{opacity:.45;cursor:wait}.wyh-currency-message{flex-basis:100%;font-size:11px;line-height:1.6}.wyh-currency-source{font-size:10px;color:inherit;text-decoration:underline}';document.head.append(style);
+refresh();if(!valid(quote)||Date.now()-quote.time_last_update_unix*1000>24*3600000)load();setInterval(()=>{if(document.visibilityState==='visible'){refresh();if(!valid(quote)||Date.now()-quote.time_last_update_unix*1000>24*3600000)load();}},3600000);
+})();
+
+</script>

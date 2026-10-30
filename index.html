@@ -564,4 +564,101 @@ const featured=document.getElementById('featured');if(featured){featured.replace
 const parts=location.hash.slice(1).split('/');if(parts[0]==='product'){const p=products.find(x=>x.id===parts[1]);if(p)detail(p);}
 })();
 </script>
+<script>
+(()=>{
+const langs=['en','id','zh','ja','es'];
+const rows=[
+['Loading security check…','Memuat pemeriksaan keamanan…','正在加载安全验证…','セキュリティ確認を読み込み中…','Cargando verificación de seguridad…'],
+['All products','Semua produk','所有商品','すべての商品','Todos los productos'],
+['Catalogue colour choices','Warna pilihan katalog','目录颜色选项','カタログの色選択','Colores del catálogo'],
+['Price:','Harga:','价格：','価格：','Precio:'],
+['Unavailable','tidak tersedia','不可用','利用不可','No disponible'],
+['W.Y.H. CATALOGUE · Product details & pricing','KATALOG W.Y.H. · Detail produk dan harga','W.Y.H. 产品目录 · 商品详情与价格','W.Y.H. カタログ · 商品情報と価格','CATÁLOGO W.Y.H. · Detalles y precios'],
+['Stock limit','Batas stok','库存限制','在庫上限','Límite de existencias'],
+['The total for this size has reached the stock limit, including other colours.','Jumlah untuk ukuran ini sudah mencapai batas, termasuk warna lainnya.','此尺码的总数量已达到库存上限，包括其他颜色。','他の色を含め、このサイズの数量は在庫上限に達しています。','El total de esta talla ha alcanzado el límite, incluidos otros colores.'],
+['Stock check unavailable','Stok belum dapat diperiksa','暂时无法检查库存','在庫を確認できません','No se pueden comprobar las existencias'],
+['The quantity was not increased. Try again when a connection is available.','Jumlah tidak ditambah. Coba lagi setelah koneksi tersedia.','数量未增加，请在网络恢复后重试。','数量は増やしていません。接続後に再試行してください。','No se aumentó la cantidad. Inténtalo cuando haya conexión.'],
+['Latest price unavailable','Harga terbaru belum tersedia','最新价格暂不可用','最新価格を取得できません','Precio actualizado no disponible'],
+['Not yet calculated','Belum dapat dihitung','尚无法计算','未計算','Aún no calculado'],
+['Order requests are reviewed by our team. Payments are not available yet.','Permintaan pesanan diperiksa tim kami. Pembayaran belum tersedia.','订单请求由我们的团队审核。付款尚未开放。','注文リクエストはスタッフが確認します。支払いはまだ利用できません。','Nuestro equipo revisa las solicitudes. Los pagos aún no están disponibles.'],
+['This size is not available yet.','Stok belum tersedia untuk pilihan ini.','此选项暂无库存。','この選択肢の在庫は未確認です。','Esta opción aún no está disponible.'],
+['Stock could not be checked. Reload to try again.','Stok belum dapat diperiksa. Muat ulang untuk mencoba lagi.','无法检查库存，请刷新后重试。','在庫を確認できません。再読み込みしてください。','No se pudieron comprobar las existencias. Recarga para intentarlo.'],
+['Your bag exceeds the stock for this size, including other colours.','Jumlah dalam keranjang melebihi stok ukuran ini, termasuk pilihan warna lainnya.','购物袋中此尺码的总数量超过库存，包括其他颜色。','他の色を含め、バッグ内のこのサイズの数量が在庫を超えています。','La bolsa supera las existencias de esta talla, incluidos otros colores.'],
+['Stock is not reserved. Shipping and the final total await admin review.','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.','库存未预留。运费和最终总额有待管理员审核。','在庫は未確保です。送料と最終金額は管理者が確認します。','No se reserva inventario. El envío y el total final requieren revisión.'],
+['Loading status…','Memuat status…','正在加载状态…','状況を読み込み中…','Cargando estado…'],
+['Request not sent.','Permintaan belum terkirim.','请求尚未发送。','リクエストは送信されていません。','Solicitud no enviada.'],
+['Awaiting confirmation','Menunggu konfirmasi','等待确认','確認待ち','Pendiente de confirmación'],
+['Awaiting payment','Menunggu pembayaran','等待付款','入金待ち','Pendiente de pago'],
+['Paid','Lunas','已付款','支払済み','Pagado'],
+['Cancelled','Dibatalkan','已取消','キャンセル済み','Cancelado'],
+['Completed','Selesai','已完成','完了','Completado'],
+['Bank details are not configured. Do not transfer money.','Rekening belum diatur. Jangan melakukan transfer.','收款账户尚未设置，请勿转账。','振込先は未設定です。振込はしないでください。','No hay datos bancarios configurados. No transfieras dinero.'],
+['Security check is not configured.','Pemeriksaan keamanan belum dikonfigurasi.','安全验证尚未配置。','セキュリティ確認は未設定です。','La verificación de seguridad no está configurada.'],
+['Complete the security check and try again.','Selesaikan pemeriksaan keamanan lalu coba lagi.','请完成安全验证后重试。','セキュリティ確認を完了して再試行してください。','Completa la verificación de seguridad e inténtalo de nuevo.'],
+['Security check is invalid or expired. Please repeat it.','Pemeriksaan keamanan tidak valid atau kedaluwarsa. Ulangi pemeriksaan.','安全验证无效或已过期，请重新验证。','セキュリティ確認が無効か期限切れです。再試行してください。','Verificación no válida o caducada. Repítela.'],
+['The security service could not be reached. Please try again.','Pemeriksaan keamanan belum dapat dihubungi. Coba lagi.','无法连接安全验证服务，请重试。','セキュリティ確認に接続できません。再試行してください。','No se pudo conectar con la verificación. Inténtalo de nuevo.'],
+['Order request submission is not open yet.','Pengiriman permintaan belum dibuka.','订单请求提交尚未开放。','注文リクエストの送信はまだ利用できません。','El envío de solicitudes aún no está abierto.'],
+['Please check your name, email, phone, address and bag contents.','Periksa nama, email, telepon, alamat dan isi keranjang.','请检查姓名、邮箱、电话、地址和购物袋内容。','氏名、メール、電話、住所、バッグの内容を確認してください。','Revisa el nombre, correo, teléfono, dirección y contenido de la bolsa.'],
+['Item or quantity is invalid.','Barang atau jumlah tidak valid.','商品或数量无效。','商品または数量が無効です。','Artículo o cantidad no válido.'],
+['The product is unavailable. Reload the catalogue.','Produk tidak tersedia. Muat ulang katalog.','商品不可用，请刷新目录。','商品を利用できません。カタログを再読み込みしてください。','Producto no disponible. Recarga el catálogo.'],
+['Please choose a shoe colour.','Pilih warna sepatu.','请选择鞋子颜色。','靴の色を選択してください。','Elige un color de calzado.'],
+['This product does not have size options.','Produk ini tidak memiliki ukuran.','此商品没有尺码选项。','この商品にはサイズ選択がありません。','Este producto no tiene opciones de talla.'],
+['Colour is invalid.','Warna tidak valid.','颜色无效。','色が無効です。','Color no válido.'],
+['Your note is too long.','Catatan terlalu panjang.','说明过长。','メモが長すぎます。','La nota es demasiado larga.'],
+['This request is already closed.','Permintaan sudah ditutup.','此请求已关闭。','このリクエストは終了しています。','Esta solicitud ya está cerrada.'],
+['Access is invalid.','Akses tidak valid.','访问无效。','アクセスが無効です。','Acceso no válido.'],
+['Not found.','Tidak ditemukan.','未找到。','見つかりません。','No se encontró.'],
+['The earlier request has different details. Reopen checkout.','Permintaan sebelumnya berbeda. Muat ulang checkout.','先前请求内容不同，请重新打开结账。','前のリクエストと内容が異なります。購入手続きを開き直してください。','La solicitud anterior tiene otros datos. Vuelve a abrir el proceso de compra.'],
+['Your request could not be confirmed as saved. Retry using the same form.','Permintaan belum dapat dipastikan tersimpan. Coba lagi dengan formulir yang sama.','无法确认请求是否已保存，请使用同一表单重试。','保存を確認できません。同じフォームで再試行してください。','No se pudo confirmar si se guardó. Reintenta con el mismo formulario.'],
+['The order service is not ready. Please contact the store.','Layanan pesanan belum siap. Periksa tabel dan konfigurasi Worker.','订单服务尚未就绪，请联系商店。','注文サービスの準備ができていません。店舗にお問い合わせください。','El servicio de pedidos no está listo. Contacta con la tienda.'],
+['The response is uncertain. Do not start a new checkout to resubmit.','Respons belum dapat dipastikan. Jangan kirim ulang melalui checkout baru.','无法确认响应，请勿新开结账重复提交。','応答を確認できません。新しい購入手続きから再送しないでください。','Respuesta incierta. No inicies otro proceso para reenviar.'],
+['Your form details remain on this page. No payment instructions have been issued.','Data formulir tetap di halaman ini. Tidak ada instruksi pembayaran.','表单内容仍保留在此页面，尚未发出付款指示。','入力内容はこのページに残っています。支払い案内は発行されていません。','El formulario permanece en esta página. No se han emitido instrucciones de pago.'],
+['The widget configuration is incomplete','Konfigurasi widget belum lengkap','验证组件配置不完整','ウィジェットの設定が未完了です','La configuración del widget está incompleta'],
+['Widget loading timed out','Waktu muat widget habis','验证组件加载超时','ウィジェットの読み込みがタイムアウトしました','Se agotó el tiempo de carga del widget'],
+['The widget script could not load','Script widget gagal dimuat','验证脚本加载失败','ウィジェットのスクリプトを読み込めません','No se pudo cargar el script del widget'],
+['The widget API is not ready','API widget belum tersedia','验证接口尚未就绪','ウィジェットAPIは未準備です','La API del widget no está lista'],
+['Connection unavailable','Koneksi tidak tersedia','网络连接不可用','接続できません','Conexión no disponible'],
+['Stock by size could not be loaded. Purchasing remains unavailable.','Stok per ukuran belum dapat dimuat. Pembelian tetap nonaktif.','无法加载尺码库存，购买仍不可用。','サイズ別在庫を読み込めません。購入は利用できません。','No se pudieron cargar las existencias por talla. La compra sigue desactivada.']
+];
+for(const row of rows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}
+const banner='W.Y.H. CATALOGUE · Product details & pricing';for(const old of ['KATALOG W.Y.H. · Harga dan bahan tersedia · Pembelian belum dibuka','CATALOG PREVIEW · Product types and materials · No payments accepted','KATALOG PREVIEW · Jenis produk dan bahan · Belum menerima pembayaran'])canonicalText.set(old,banner);
+const oldPurchase='Dapat ditambahkan ke keranjang. Pemesanan dan pembayaran belum dibuka.';
+const oldPurchaseKey=canonicalText.get(oldPurchase);for(const [key,value] of canonicalText)if(value===oldPurchaseKey)canonicalText.set(key,'Order requests are reviewed by our team. Payments are not available yet.');canonicalText.set(oldPurchase,'Order requests are reviewed by our team. Payments are not available yet.');
+const dynamicTerms={
+ en:{status:'Status',none:'No automatic transfer instructions.',unit:'pairs',color:'Colour',size:'Size',notStock:'Stock for size {size} is not available yet.',locked:'Submission remains locked.',code:'Widget failed. Code: ',failed:'Security check failed',eu:'EU',sizeCount:'Stock for size',labelColor:'Colour'},
+ id:{status:'Status',none:'Tidak ada instruksi transfer otomatis.',unit:'pasang',color:'Warna',size:'Ukuran',notStock:'Stok ukuran {size} belum tersedia.',locked:'Pengiriman tetap terkunci.',code:'Widget gagal. Kode: ',failed:'Pemeriksaan gagal',eu:'EU',sizeCount:'Stok ukuran',labelColor:'Warna'},
+ zh:{status:'状态',none:'不会自动发送转账指示。',unit:'双',color:'颜色',size:'尺码',notStock:'尺码 {size} 暂无库存。',locked:'提交仍被锁定。',code:'验证组件失败。代码：',failed:'安全验证失败',eu:'EU',sizeCount:'尺码库存',labelColor:'颜色'},
+ ja:{status:'状況',none:'振込案内は自動送信されません。',unit:'足',color:'カラー',size:'サイズ',notStock:'サイズ {size} の在庫は未確認です。',locked:'送信はロックされています。',code:'ウィジェットエラー。コード：',failed:'セキュリティ確認に失敗',eu:'EU',sizeCount:'サイズ別在庫',labelColor:'カラー'},
+ es:{status:'Estado',none:'No se envían instrucciones de transferencia automáticamente.',unit:'pares',color:'Color',size:'Talla',notStock:'No hay existencias disponibles de la talla {size}.',locked:'El envío sigue bloqueado.',code:'Error del widget. Código: ',failed:'Falló la verificación',eu:'EU',sizeCount:'Existencias de la talla',labelColor:'Color'}
+};
+const dynamicOriginal=new Map();const prior=translatedText;
+function lookup(source,lang){const canonical=canonicalText.get(source)||source;return dictionaries[lang].get(canonical)||source;}
+translatedText=function(text){
+ const value=text.trim();if(!value)return text;const source=dynamicOriginal.get(value)||value;const t=dynamicTerms[wyhLanguage];let output;
+ // Exact entries are resolved before older wrappers, including new API messages.
+ const direct=lookup(source,wyhLanguage);if(direct!==source||canonicalText.has(source))return text.replace(value,direct);
+ let m=source.match(/^Status: (Menunggu konfirmasi|Menunggu pembayaran|Lunas|Dibatalkan|Selesai)\. Tidak ada instruksi transfer otomatis\.$/);
+ if(m)output=t.status+': '+lookup(m[1],wyhLanguage)+'. '+t.none;
+ m=source.match(/^Stok ukuran (.+) belum tersedia\.$/);if(m)output=t.notStock.replace('{size}',m[1]);
+ m=source.match(/^Widget gagal\. Kode: (.+)\. Pengiriman tetap terkunci\.$/);if(m)output=t.code+m[1]+'. '+t.locked;
+ m=source.match(/^Pemeriksaan gagal \[([^\]]+)\]: (.+)\. Pengiriman tetap terkunci\.$/);if(m)output=t.failed+' ['+m[1]+']: '+lookup(m[2],wyhLanguage)+'. '+t.locked;
+ m=source.match(/^(Ukuran tidak tersedia untuk |Jumlah melebihi stok untuk )(.+)$/);if(m){const prefix={en:['Size unavailable for ','Quantity exceeds stock for '],id:['Ukuran tidak tersedia untuk ','Jumlah melebihi stok untuk '],zh:['此商品尺码不可用：','数量超过此商品库存：'],ja:['サイズを利用できません：','在庫を超えています：'],es:['Talla no disponible para ','La cantidad supera las existencias de ']}[wyhLanguage];output=prefix[m[1].startsWith('Ukuran')?0:1]+m[2];}
+ const suffix=' Data formulir tetap di halaman ini. Tidak ada instruksi pembayaran.';
+ if(source.endsWith(suffix))output=translatedText(source.slice(0,-suffix.length))+' '+lookup(suffix.trim(),wyhLanguage);
+ // Bag variant labels include data. Translate labels and color, never product names.
+ m=source.match(/^(?:Size|Ukuran) ([0-9.SMLXEU ]+)(?: · (?:Warna|Colour) (Hitam|Brown Gold))?$/);if(m)output=t.size+' '+m[1]+(m[2]?' · '+t.color+' '+lookup(m[2],wyhLanguage):'');
+ if(output!==undefined){dynamicOriginal.set(output,source);return text.replace(value,output);}
+ return prior(text);
+};
+const archive=document.querySelector('.archive');if(archive)archive.textContent=banner;
+// The extension translates accessibility labels too, while leaving field values and typed notes untouched.
+const ariaRows=[['Close checkout','Tutup checkout','关闭结账','購入手続きを閉じる','Cerrar compra'],['Close bag','Tutup keranjang','关闭购物袋','バッグを閉じる','Cerrar bolsa'],['Close','Tutup','关闭','閉じる','Cerrar'],['Reduce quantity','Kurangi jumlah','减少数量','数量を減らす','Reducir cantidad'],['Increase quantity','Tambah jumlah','增加数量','数量を増やす','Aumentar cantidad'],['Shoe colours','Pilihan warna sepatu','鞋子颜色选项','靴の色','Colores del calzado']];
+for(const row of ariaRows)for(let i=0;i<langs.length;i++){canonicalText.set(row[i],row[0]);dictionaries[langs[i]].set(row[0],row[i]);}
+const oldTranslatePage=translatePage;translatePage=function(){oldTranslatePage();for(const node of document.querySelectorAll('[aria-label]')){const label=node.getAttribute('aria-label');const translated=translatedText(label);if(label!==translated)node.setAttribute('aria-label',translated);}};
+// Remove misleading old footer wording about historical prices without claiming payment readiness.
+for(const old of ['Product prices are historical. Accounts, checkout, payments, discounts and stock validation are not connected.','Harga belum diisi. Akun, pembayaran, diskon, dan validasi stok belum terhubung; checkout hanya simulasi.'])canonicalText.set(old,'Order requests are reviewed by our team. Payments are not available yet.');
+translatePage();
+window.wyhLocaleAudit={rows,translate:translatedText};
+})();
+</script>
 </body></html>

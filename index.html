@@ -311,7 +311,7 @@ async function showOrderReceipt(d,receipt){
  if(hasShipping){
   const shippingLine=el('p');shippingLine.append(el('span','','Shipping cost: '),el('span','',money(data.shipping_idr)));d.append(shippingLine);
   const totalLine=el('p');totalLine.append(el('strong','','Order total: '),el('span','',money(data.total_idr)));d.append(totalLine);
-  const baseLine=el('p','fine');baseLine.setAttribute('data-wyh-base-idr','true');baseLine.append(el('span','','Base order total in IDR: '),el('span','',new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(data.total_idr)));d.append(baseLine,el('p','fine','Shipping has been reviewed by admin. This is not a payment request. Stock is not reserved. Do not transfer money.'));
+  const baseLine=el('p','fine');baseLine.setAttribute('data-wyh-base-idr','true');baseLine.append(el('span','','Base order total in IDR: '),el('span','',new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:2,maximumFractionDigits:2}).format(data.total_idr)));d.append(baseLine,el('p','fine','Shipping has been reviewed by admin. This is not a payment request. Stock is not reserved. Do not transfer money.'));
  }else d.append(el('p','fine','Stok belum direservasi. Ongkir dan total akhir menunggu pemeriksaan admin.'));
  if(!['cancelled','completed'].includes(data.status)){
   const label=el('label','','Catatan perubahan atau pembatalan');const note=el('textarea');note.maxLength=2000;note.style.cssText='width:100%;min-height:100px;background:#2c2119;color:#f5ece0;padding:12px;box-sizing:border-box';label.append(note);d.append(label);

@@ -683,7 +683,9 @@ function makePicker(){const box=document.createElement('div');box.className='wyh
  for(const [code,label] of [['IDR','IDR'],['USD','US$'],['EUR','€']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.currency=code;b.onclick=()=>{selected=code;try{localStorage.setItem('wyh-currency',code);}catch{}refresh();};box.append(b);}
  const note=document.createElement('small');note.className='wyh-currency-message';box.append(note);const source=document.createElement('a');source.href='https://www.exchangerate-api.com';source.target='_blank';source.rel='noopener noreferrer';source.textContent='ExchangeRate-API';source.className='wyh-currency-source';box.append(source);pickers.add(box);return box;}
 function install(){for(const id of ['catalog-grid','featured']){const grid=document.getElementById(id);if(grid&&!grid.nextElementSibling?.classList.contains('wyh-currency-picker'))grid.after(makePicker());}
- const detail=document.getElementById('detail-view'),price=detail?.querySelector('.price');if(price&&!detail.querySelector('.wyh-currency-picker'))price.after(makePicker());}
+ const detail=document.getElementById('detail-view'),price=detail?.querySelector('.price');if(price&&!detail.querySelector('.wyh-currency-picker'))price.after(makePicker());
+ const cart=document.getElementById('cart-dialog');if(cart&&!cart.querySelector('.wyh-currency-picker')){const title=cart.querySelector('h2');if(title)title.after(makePicker());}
+}
 function refresh(){install();
  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('script,style,textarea,input,select,.wyh-currency-picker')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});let node;
  while(node=walker.nextNode()){let record=originals.get(node);if(record&&node.nodeValue!==record.last){originals.delete(node);record=null;}
